@@ -1,0 +1,115 @@
+# Parts of configuration file are based on the examples in this repository:
+# https://github.com/oneapi-src/oneapi-ci
+#
+# Which have the following copyright:
+# SPDX-FileCopyrightText: 2020 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+
+name: tests - ifort
+
+on:
+  push:
+    branches:
+      - develop
+      - test001h_rch_array4
+  pull_request:
+    branches:
+      - develop
+
+env:
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18680/w_HPCKit_p_2022.2.0.173_offline.exe
+  LINUX_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18679/l_HPCKit_p_2022.2.0.191_offline.sh
+  MACOS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18681/m_HPCKit_p_2022.2.0.158_offline.dmg
+  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
+  LINUX_FORTRAN_COMPONENTS_WEB: intel.oneapi.lin.ifort-compiler
+  MACOS_FORTRAN_COMPONENTS: intel.oneapi.mac.ifort-compiler
+  FC: ifort
+  VS_VER: vs2022
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          #- os: ubuntu-latest
+          - os: macos-latest
+          #- os: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2.3.4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: 3.9
+
+      - name: cache install ifort on macos
+        if: runner.os == 'macOS'
+        id: cache-install-macos
+        uses: actions/cache@v2
+        with:
+          path: /opt/intel/oneapi
+          key: install-${{ env.MACOS_HPCKIT_URL }}-${{ env.MACOS_FORTRAN_COMPONENTS }}
+
+      - name: install ifort on macos
+        if: runner.os == 'macOS' && steps.cache-install-macos.outputs.cache-hit != 'true'
+        run: |
+          .github/intel-scripts/install_macos.sh $MACOS_HPCKIT_URL $MACOS_FORTRAN_COMPONENTS
+
+      - name: Install python packages
+        run: |
+          .github/common/install-python-std.sh
+
+      - name: Print python package versions
+        run: |
+          pip list
+
+#      - name: Test make for MODFLOW 6 programs
+#        if: runner.os == 'Linux' || runner.os == 'macOS'
+#        working-directory: ./distribution
+#        run: |
+#          source /opt/intel/oneapi/setvars.sh
+#          pytest -v -n=auto build_makefiles.py
+
+      - name: Set and print branch name
+        run: |
+          .github/common/git-branch-export.sh
+
+      - name: Get regression test files
+        run: |
+          .github/common/get-regression-files.sh
+
+      - name: Check out the correct regression test branch
+        run: |
+          .github/common/checkout-regression-branch.sh
+
+      - name: Update flopy MODFLOW 6 classes
+        run: |
+          .github/common/update-flopy.sh
+
+      - name: learn
+        run: |
+          which pip
+          which python
+          python .github/common/test.py
+
+      - name: Build MODFLOW 6 (Linux or macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
+          meson install -C builddir
+          cd autotest
+          pytest -v --durations=0 get_exes.py
+
+      - name: Test applications
+        working-directory: autotest2
+        run: |
+          pytest -v -n=auto --durations=0
