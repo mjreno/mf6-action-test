@@ -9,9 +9,6 @@ on:
 jobs:
   fformat-check:
     runs-on: ubuntu-latest
-#    env:
-#      working-directory: .build_rtd_docs
-#      distribution-directory: distribution
 
     steps:
       - uses: actions/checkout@v2.3.4
@@ -39,6 +36,6 @@ jobs:
         run: |
           .github/common/git-branch-export.sh
 
-      - name: Fformat check
+      - name: Fortran format check
         run: |
           .github/common/fformat-check.sh

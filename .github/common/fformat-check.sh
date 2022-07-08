@@ -22,7 +22,7 @@ do
         for f in "${EXCLUDEFILES[@]}"; do [[ "${f}" == "${file}" ]] && exclude=1 && break; done
         if [[ ${exclude} == 1 ]]; then continue; fi
 
-        if [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "${file}" 2>/dev/null) ]]; then
+        if [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "${file}" 2>&1) ]]; then
             FCHECKFAILS+=("$file")
         fi
     done
@@ -30,10 +30,7 @@ done
 
 if [[ ${#FCHECKFAILS[@]} > 0 ]]; then
     echo -e "\nFiles failing formatting check:\n"
-    for f in "${FCHECKFAILS[@]}"
-    do
-        echo "${f}"
-    done
+    for f in "${FCHECKFAILS[@]}"; do echo "${f}"; done
     echo -e "\nTo verify file format diff in local environment run:"
     echo -e "  'fprettify -d -c <path to modflow6>/distribution/.fprettify.yaml <filepath>'\n\n"
     exit 1
