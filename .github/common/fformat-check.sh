@@ -4,21 +4,27 @@
 SEARCHPATHS=(src)
 FCHECKFAILS=()
 
-EXCLUDEDIRS=(src/Utilities/Libraries/blas
-             src/Utilities/Libraries/daglib
-             src/Utilities/Libraries/rcm
-             src/Utilities/Libraries/sparsekit
-             src/Utilities/Libraries/sparskit2)
-#EXCLUDEFILES=(src/Utilities/InputOutput.f90)
+#EXCLUDEDIRS=(src/Utilities/Libraries/blas
+#             src/Utilities/Libraries/daglib
+#             src/Utilities/Libraries/rcm
+#             src/Utilities/Libraries/sparsekit
+#             src/Utilities/Libraries/sparskit2)
+EXCLUDEDIRS=()
+#EXCLUDEFILES=()
+EXCLUDEFILES=(src/Utilities/InputOutput.f90)
 
 for path in "${SEARCHPATHS[@]}"
 do
     mapfile -d '' files < <(find "$path" -type f -print0 | grep -z '\.[fF][0-9+]')
     for file in "${files[@]}"
     do
-        if [[ ! "${EXCLUDEDIRS[*]}" =~ $(dirname "$file") ]] &&
-           [[ ! "${EXCLUDEFILES[*]}" =~ "${file}" ]] &&
-           [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "$file" 2>/dev/null) ]]; then
+        found=0
+        for p in "${EXCLUDEDIRS[@]}"; do [[ "$p" == $(dirname "$file") ]] && found=1 && break; done
+        if [[ $found == 1 ]]; then continue; fi
+        for f in "${EXCLUDEFILES[@]}"; do [[ "$f" == "$file" ]] && found=1 && break; done
+        if [[ $found == 1 ]]; then continue; fi
+
+        if [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "$file" 2>/dev/null) ]]; then
             FCHECKFAILS+=("$file")
         fi
     done
