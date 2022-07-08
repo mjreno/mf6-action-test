@@ -5,8 +5,8 @@ SEARCHPATHS=(src)
 FCHECKFAILS=()
 
 for path in "${SEARCHPATHS[@]}"
-echo "path=$path"
 do
+    echo "path=$path"
     mapfile -d '' files < <(find "$path" -type f -print0 | grep -z '\.[fF][0-9+]')
     for file in "${files[@]}"
     do
