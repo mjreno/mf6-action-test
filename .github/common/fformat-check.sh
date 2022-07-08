@@ -9,7 +9,7 @@ EXCLUDEDIRS=(src/Utilities/Libraries/blas
              src/Utilities/Libraries/rcm
              src/Utilities/Libraries/sparsekit
              src/Utilities/Libraries/sparskit2)
-EXCLUDEFILES=(src/Utilities/InputOutput.f90)
+#EXCLUDEFILES=(src/Utilities/InputOutput.f90)
 
 for path in "${SEARCHPATHS[@]}"
 do
