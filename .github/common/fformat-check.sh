@@ -2,8 +2,7 @@
 
 #SEARCHPATHS=(src srcbmi utils)
 SEARCHPATHS=(src)
-FCHECKFAILS=()
-
+FFORMATFAILS=()
 EXCLUDEDIRS=(src/Utilities/Libraries/blas
              src/Utilities/Libraries/daglib
              src/Utilities/Libraries/rcm
@@ -17,20 +16,24 @@ do
     for file in "${files[@]}"
     do
         exclude=0
-        for p in "${EXCLUDEDIRS[@]}"; do [[ "${p}" == $(dirname "${file}") ]] && exclude=1 && break; done
+
+        for p in "${EXCLUDEDIRS[@]}"; 
+        do [[ "${p}" == $(dirname "${file}") ]] && exclude=1 && break; done
         if [[ ${exclude} == 1 ]]; then continue; fi
-        for f in "${EXCLUDEFILES[@]}"; do [[ "${f}" == "${file}" ]] && exclude=1 && break; done
+
+        for f in "${EXCLUDEFILES[@]}";
+        do [[ "${f}" == "${file}" ]] && exclude=1 && break; done;
         if [[ ${exclude} == 1 ]]; then continue; fi
 
         if [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "${file}" 2>&1) ]]; then
-            FCHECKFAILS+=("$file")
+            FFORMATFAILS+=("${file}")
         fi
     done
 done
 
-if [[ ${#FCHECKFAILS[@]} > 0 ]]; then
+if [[ ${#FFORMATFAILS[@]} > 0 ]]; then
     echo -e "\nFiles failing formatting check:\n"
-    for f in "${FCHECKFAILS[@]}"; do echo "${f}"; done
+    for f in "${FFORMATFAILS[@]}"; do echo "${f}"; done
     echo -e "\nTo verify file format diff in local environment run:"
     echo -e "  'fprettify -d -c <path to modflow6>/distribution/.fprettify.yaml <filepath>'\n\n"
     exit 1
