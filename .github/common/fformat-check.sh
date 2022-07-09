@@ -9,6 +9,8 @@ EXCLUDEDIRS=(src/Utilities/Libraries/blas
              src/Utilities/Libraries/sparsekit
              src/Utilities/Libraries/sparskit2)
 EXCLUDEFILES=(src/Utilities/InputOutput.f90)
+checkcount=0
+failcount=0
 
 for path in "${SEARCHPATHS[@]}"
 do
@@ -25,14 +27,18 @@ do
         do [[ "${f}" == "${file}" ]] && exclude=1 && break; done;
         if [[ ${exclude} == 1 ]]; then continue; fi
 
+        ((checkcount++))
+
         if [[ ! -z $(fprettify -d -c distribution/.fprettify.yaml "${file}" 2>&1) ]]; then
             FFORMATFAILS+=("${file}")
+            ((failcount++))
         fi
     done
 done
 
+echo -e "\nFortran source files checked: ${checkcount}"
+echo -e "Fortran source files failed: ${failcount}\n"
 if [[ ${#FFORMATFAILS[@]} > 0 ]]; then
-    echo -e "\nFiles failing formatting check:\n"
     for f in "${FFORMATFAILS[@]}"; do echo "${f}"; done
     echo -e "\nTo verify file format diff in local environment run:"
     echo -e "  'fprettify -d -c <path to modflow6>/distribution/.fprettify.yaml <filepath>'\n\n"
