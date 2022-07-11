@@ -7,7 +7,7 @@ on:
     branches: [ develop ]
 
 jobs:
-  fformat-check:
+  fortan-format-check:
     runs-on: ubuntu-latest
 
     steps:
