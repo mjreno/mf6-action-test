@@ -38,4 +38,4 @@ jobs:
 
       - name: Fortran format check
         run: |
-          .github/common/fformat-check.sh
+          .github/common/fortran-format-check.sh
