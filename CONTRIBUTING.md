@@ -155,18 +155,20 @@ some considerations are relevant beyond running the tool:
 
 The formatting tool at times shifts code in unexpected ways so such patterns should be checked after running.
 
-The command line tool can be run as seen here:
+The command line tool can be run as below:
 
     ```shell
     fprettify -c ./distribution/.fprettify.yaml ./utils/zonebudget/src/zbud6.f90
     ```
 
+    `fprettify -c ./distribution/.fprettify.yaml ./utils/zonebudget/src/zbud6.f90`
+
 When run in this way, the tool will modify the file in place and generate no output if successful. The
 tool will write stderr warnings when unable to complete formatting. In general, these warnings (e.g.
 for excess line length) must be manually fixed before attempting to rerun the tool.
 
-Certain Fortran source files will be excluded from the formatting standard, for example external Fortran
-source found under the modflow6/src/Utilities/Libraries path. There will be a mechanism to exclude such
+Certain Fortran source files are excluded from the formatting standard, for example external Fortran
+source found under the `modflow6/src/Utilities/Libraries` path. There will be a mechanism to exclude such
 files from CI format checking.
 
 ## <a name="commit"></a> Commit Message Guidelines

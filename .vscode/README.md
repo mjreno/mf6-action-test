@@ -34,8 +34,8 @@ Remote - WSL is only needed if you want to use a windows vscode installation in 
 
 Required and optional dependencies for modflow6 are discussed in [DEVELOPER.md](../DEVELOPER.md)
 
-The Modern Fortran extension requires a Fortran compiler and language server.  Install
-the [fortls](https://github.com/gnikit/fortls) fortran language server via:
+The Modern Fortran extension requires a Fortran compiler and language server.  To install
+the [fortls](https://github.com/gnikit/fortls) fortran language server run:
 
 ```bash
 pip install -U fortls
@@ -49,8 +49,8 @@ using pip or conda.
 
 Add [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settingsjson) to the
 `modflow6/.vscode` directory if not already there. The following settings can be considered a
-place to start, the contents of this file are dictated both by desired VSCode behavior and
-descriptions of the environment:
+starting place as the contents of this file are dictated both by desired VSCode behavior and
+environmental factors:
 
 In general, to determine the path of an installed tool in your environment run:
 - bash: `which <toolname>`, e.g. `which fortls`
