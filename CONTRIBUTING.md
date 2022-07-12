@@ -152,9 +152,10 @@ some considerations are relevant beyond running the tool:
 
 * When modifying a file, in general follow already well established patterns in the file.
 * When adding a file, look to already well established patterns in related files.
-* The formatting tool at times shifts code in unexpected ways so such patterns should be checked after running.
 
-The command line tool can be run as below:
+The formatting tool at times shifts code in unexpected ways so such patterns should be checked after running.
+
+The command line tool can be run as seen here:
 
     ```shell
     fprettify -c ./distribution/.fprettify.yaml ./utils/zonebudget/src/zbud6.f90
