@@ -68,7 +68,7 @@ These programs can be installed from various sources, including by conda, macpor
 
 ### fprettify (optional)
 
-[fprettify](https://github.com/pseewald/fprettify) can be used to format Fortran source code and in combination with the [modflow6 fprettify configuration](https://github.com/MODFLOW-USGS/modflow6/blob/develop/distribution/.fprettify.yaml) establishes a contribution standard for properly formatted modflow6 Fortran source. This tool can be installed with pip or conda and used from the command line or integrated with a vscode or Visual Studio development environment. See the [contribution guidelines](https://github.com/MODFLOW-USGS/modflow6/blob/develop/CONTRIBUTING.md) and [vscode readme](https://github.com/MODFLOW-USGS/modflow6/blob/develop/.vscode/README.md) for additional information.
+[fprettify](https://github.com/pseewald/fprettify) can be used to format Fortran source code and in combination with the [modflow6 fprettify configuration](https://github.com/MODFLOW-USGS/modflow6/blob/develop/distribution/.fprettify.yaml) establishes a contribution standard for properly formatted modflow6 Fortran source. This tool can be installed with pip or conda and used from the command line or integrated with a VSCode or Visual Studio development environment. See the [contribution guidelines](https://github.com/MODFLOW-USGS/modflow6/blob/develop/CONTRIBUTING.md) and [vscode README](https://github.com/MODFLOW-USGS/modflow6/blob/develop/.vscode/README.md) for additional information.
 
 ## Getting the Sources
 

@@ -49,8 +49,8 @@ using pip or conda.
 
 Add [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settingsjson) to the
 `modflow6/.vscode` directory if not already there. The following settings can be considered a
-place to start, the contents of this file are really determined by the behavior you prefer from
-VSCode and your specific environment:
+place to start, the contents of this file are dictated both by desired VSCode behavior and
+descriptions of the environment:
 
 In general, to determine the path of an installed tool in your environment run:
 - bash: `which <toolname>`, e.g. `which fortls`
@@ -105,7 +105,7 @@ shell (windows), change to the `modflow6` directory and execute the command:
 code .
 ```
 
-Note the period. Starting in this way, VSCode will open as desired, inheriting and discovering
+Note the dot. Starting in this way, VSCode will open as desired, inheriting and discovering
 expected runtime settings in the correct directory location.
 
 ### Compiling

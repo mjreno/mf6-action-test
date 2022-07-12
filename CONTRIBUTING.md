@@ -140,10 +140,11 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## <a name="format"></a> Format Rules
 
-Fortran souce code format rules are met by running the [fprettify formatter](fprettify) while specifying
-the modflow6 fprettify configuration (modflow6/distribution/.fprettify.yaml).  The tool can be run from
-the command line or integrated into a VSCode or Visual Studio developement environment
-([VSCode development](vscode)).
+Fortran souce code format rules are met by running the
+[fprettify formatter](https://github.com/pseewald/fprettify) while specifying the [modflow6
+fprettify configuration](modflow6/distribution/.fprettify.yaml). The tool can be run from
+the command line or integrated into a Visual Studio or
+[VSCode environment](https://github.com/MODFLOW-USGS/modflow6/blob/develop/.vscode/README.md).
 
 The repository format configuration file reflects the current minimum standard for Fortran source
 formatting.  The main goal, however, is consistent and readable Fortran source code and as such
@@ -248,7 +249,5 @@ The footer should contain any information about **Breaking Changes** and is also
 
 [coc]: https://github.com/MODFLOW-USGS/modflow6/blob/develop/CODE_OF_CONDUCT.md
 [dev-doc]: https://github.com/MODFLOW-USGS/modflow6/blob/develop/DEVELOPER.md
-[vscode]: https://github.com/MODFLOW-USGS/modflow6/blob/develop/.vscode/README.md
 [github]: https://github.com/MODFLOW-USGS/modflow6
 [stackoverflow]: http://stackoverflow.com/questions/tagged/modflow6
-[fprettify]: https://github.com/pseewald/fprettify
