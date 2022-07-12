@@ -142,15 +142,15 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 Fortran souce code format rules are met by running the
 [fprettify formatter](https://github.com/pseewald/fprettify) while specifying the [modflow6
-fprettify configuration](modflow6/distribution/.fprettify.yaml). The tool can be run from
-the command line or integrated into a Visual Studio or
+fprettify configuration](https://github.com/MODFLOW-USGS/modflow6/blob/develop/distribution/.fprettify.yaml).
+The tool can be run from the command line or integrated into a Visual Studio or
 [VSCode environment](https://github.com/MODFLOW-USGS/modflow6/blob/develop/.vscode/README.md).
 
-The repository format configuration file reflects the current minimum standard for Fortran source
+The format configuration file reflects the current minimum standard for Fortran source
 formatting.  The main goal, however, is consistent and readable Fortran source code and as such
 some considerations are relevant beyond running the tool:
 
-* When modifying a file, in general follow already established patterns in the file.
+* When modifying a file, in general follow already well established patterns in the file.
 * When adding a file, look to already well established patterns in related files.
 * The formatting tool at times shifts code in unexpected ways so such patterns should be checked after running.
 
@@ -159,6 +159,7 @@ The command line tool can be run as below:
     ```shell
     fprettify -c ./distribution/.fprettify.yaml ./utils/zonebudget/src/zbud6.f90
     ```
+
 When run in this way, the tool will modify the file in place and generate no output if successful. The
 tool will write stderr warnings when unable to complete formatting. In general, these warnings (e.g.
 for excess line length) must be manually fixed before attempting to rerun the tool.
