@@ -1,6 +1,5 @@
 #! /bin/bash
 
-#SEARCHPATHS=(src srcbmi utils)
 SEARCHPATHS=(src srcbmi utils/zonebudget/src)
 EXCLUDEDIRS=(src/Utilities/Libraries/blas # external library blas
              src/Utilities/Libraries/daglib # external library dag
