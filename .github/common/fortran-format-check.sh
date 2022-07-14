@@ -1,7 +1,7 @@
 #! /bin/bash
 
 #SEARCHPATHS=(src srcbmi utils)
-SEARCHPATHS=(src)
+SEARCHPATHS=(src srcbmi)
 EXCLUDEDIRS=(src/Utilities/Libraries/blas # external library blas
              src/Utilities/Libraries/daglib # external library dag
              src/Utilities/Libraries/rcm # external library rcm
@@ -13,7 +13,6 @@ fformatfails=()
 checkcount=0
 
 for path in "${SEARCHPATHS[@]}"; do
-  #mapfile -d '' files < <(find "${path}" -type f -print0 | grep -z '\.[fF]9[0-9]')
   readarray -d '' files < <(find "${path}" -type f -print0 | grep -z '\.[fF]9[0,5]$')
   for file in "${files[@]}"; do
     exclude=0
