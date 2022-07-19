@@ -1,4 +1,4 @@
-name: docs
+name: fortran-format-check
 
 on:
   push:
@@ -9,18 +9,15 @@ on:
 jobs:
   fortan-format-check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
 
     steps:
       - uses: actions/checkout@v2.3.4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4.0.0
-        with:
-          python-version: 3.9
-
-      - name: Install python packages
-        run: |
-          .github/common/install-python-std.sh
+      - name: Install Conda environment from environment.yml
+        uses: mamba-org/provision-with-micromamba@main
 
       - name: Setup symbolic links on Linux
         run: |
@@ -36,6 +33,6 @@ jobs:
         run: |
           .github/common/git-branch-export.sh
 
-      - name: Fortran format check
+      - name: Fortran source format check
         run: |
           .github/common/fortran-format-check.sh
