@@ -116,6 +116,7 @@ jobs:
         if: matrix.FC == 'ifort'
         run: |
           source /opt/intel/oneapi/setvars.sh
+          which ifort
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
           cd autotest2

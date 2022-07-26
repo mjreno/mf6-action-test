@@ -115,7 +115,7 @@ def run_mf6(sim):
     sim.teardown()
 
 
-def set_make_comparison(test):
+def set_make_comparison(test, context=None):
     compare_tests = {
         "test1004_mvlake_laksfr_tr": ("6.2.2",),
         "test1004_mvlake_lak_tr": ("6.2.1",),
@@ -124,10 +124,14 @@ def set_make_comparison(test):
     }
     make_comparison = True
     if test in compare_tests.keys():
-        version = get_mf6_version()
+        if context:
+            version = context.get_mf6_version()
+            regression_version = context.get_mf6_version(version="mf6-regression")
+        else:
+            version = get_mf6_version()
+            regression_version = get_mf6_version(version="mf6-regression")
         print(f"MODFLOW version='{version}'")
-        version = get_mf6_version(version="mf6-regression")
-        print(f"MODFLOW regression version='{version}'")
+        print(f"MODFLOW regression version='{regression_version}'")
         if version in compare_tests[test]:
             make_comparison = False
     return make_comparison
@@ -140,15 +144,15 @@ mf6_models = get_mf6_models()
     "exdir",
     mf6_models,
 )
-def test_mf6model(exdir, mf6testctx_target_paths):
+def test_mf6model(exdir, mf6testctx):
     # run the test model
     run_mf6(
         Simulation(
             exdir,
-            exe_dict=mf6testctx_target_paths,
+            exe_dict=mf6testctx.get_target_dictionary(),
             mf6_regression=set_mf6_regression(),
             cmp_verbose=False,
-            make_comparison=set_make_comparison(exdir),
+            make_comparison=set_make_comparison(exdir, context=mf6testctx),
         )
     )
 
