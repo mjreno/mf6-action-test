@@ -40,8 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         FC: [ ifort, gfortran ]
-        #test_script: [ largetests, examples ]
-        test_script: [ examples ]
+        test_script: [ largetests, examples ]
+        #test_script: [ examples ]
     defaults:
       run:
         shell: bash -l {0}
@@ -141,9 +141,9 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
           ls -l modflow-devtools/bin
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: Test applications gfortran
         if: matrix.FC == 'gfortran'
@@ -151,9 +151,9 @@ jobs:
         run: |
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
           ls -l modflow-devtools/bin
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: exclude unused files from cache on linux
         if: matrix.FC == 'ifort' && steps.cache-install-linux.outputs.cache-hit != 'true'
