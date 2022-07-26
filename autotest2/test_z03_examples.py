@@ -114,7 +114,7 @@ def run_mf6(sim):
     sim.teardown()
 
 
-def set_make_comparison(test):
+def set_make_comparison(test, context=None):
     compare_tests = {
         "ex-gwf-capture": ("6.2.1",),
         "ex-gwf-sagehen": ("6.2.1",),
@@ -131,10 +131,14 @@ def set_make_comparison(test):
     }
     make_comparison = True
     if test in compare_tests.keys():
-        version = get_mf6_version()
+        if context:
+            version = context.get_mf6_version()
+            regression_version = context.get_mf6_version(version="mf6-regression")
+        else:
+            version = get_mf6_version()
+            regression_version = get_mf6_version(version="mf6-regression")
         print(f"MODFLOW version='{version}'")
-        version = get_mf6_version(version="mf6-regression")
-        print(f"MODFLOW regression version='{version}'")
+        print(f"MODFLOW regression version='{regression_version}'")
         if version in compare_tests[test]:
             print(
                 f"Test {test} does not run with versions {compare_tests[test]}"
@@ -161,7 +165,7 @@ def test_mf6model(exdir, mf6testctx):
             exe_dict=mf6testctx.get_target_dictionary(),
             mf6_regression=True,
             cmp_verbose=False,
-            make_comparison=set_make_comparison(exdir),
+            make_comparison=set_make_comparison(exdir, context=mf6testctx),
         )
     )
 
