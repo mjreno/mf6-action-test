@@ -5,5 +5,5 @@ from modflow_devtools import (
 )
 
 @pytest.fixture(scope="session")
-def mf6testctx_target_paths(request):
+def mf6testctx(request):
     return MFTestContext(testbin="../bin")
