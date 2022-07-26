@@ -137,7 +137,7 @@ jobs:
       - name: Test applications
         working-directory: autotest2
         run: |
-          ls -l modflow-devtools/bin
+          ls -l .
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
