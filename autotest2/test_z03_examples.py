@@ -153,12 +153,12 @@ mf6_models = get_mf6_models()
     "exdir",
     mf6_models,
 )
-def test_mf6model(exdir, mf6testctx_target_paths):
+def test_mf6model(exdir, mf6testctx):
     # run the test model
     run_mf6(
         Simulation(
             exdir,
-            exe_dict=mf6testctx_target_paths,
+            exe_dict=mf6testctx.get_target_dictionary(),
             mf6_regression=True,
             cmp_verbose=False,
             make_comparison=set_make_comparison(exdir),

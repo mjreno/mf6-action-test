@@ -40,8 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         FC: [ ifort, gfortran ]
-        #test_script: [ largetests, examples ]
-        test_script: [ largetests ]
+        test_script: [ largetests, examples ]
+        #test_script: [ largetests ]
     defaults:
       run:
         shell: bash -l {0}
