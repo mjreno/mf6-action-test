@@ -134,7 +134,19 @@ jobs:
           git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
           #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
 
-      - name: Test applications
+      - name: Test applications ifort
+        if: matrix.FC == 'ifort'
+        working-directory: autotest2
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          ls -l .
+          ls -l modflow-devtools
+          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+          ls -l modflow-devtools/bin
+          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+
+      - name: Test applications gfortran
+        if: matrix.FC == 'gfortran'
         working-directory: autotest2
         run: |
           ls -l .
