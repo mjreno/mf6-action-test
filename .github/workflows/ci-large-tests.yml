@@ -16,9 +16,14 @@
 
 name: Run and test modflow6-largetestmodels and modflow6-examples (z03)
 
+#on:
+#  schedule:
+#    - cron: '0 6 * * *' # run at 6 AM UTC every day
 on:
-  schedule:
-    - cron: '0 6 * * *' # run at 6 AM UTC every day
+  push:
+    branches:
+      - develop
+      - test001h_rch_array4
 
 env:
   WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18680/w_HPCKit_p_2022.2.0.173_offline.exe
@@ -112,19 +117,21 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
-          cd autotest
-          pytest -v --durations=0 get_exes.py
+          cd autotest2
+          git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+          #pytest -v --durations=0 get_exes.py
 
       - name: Build gfortran applications
         if: matrix.FC == 'gfortran'
         run: |
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
-          cd autotest
-          pytest -v --durations=0 get_exes.py
+          cd autotest2
+          git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+          #pytest -v --durations=0 get_exes.py
 
       - name: Test applications
-        working-directory: autotest
+        working-directory: autotest2
         run: |
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
