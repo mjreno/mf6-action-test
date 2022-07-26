@@ -109,6 +109,9 @@ jobs:
         run: |
           cd ../modflow6-examples/etc/
           python ci_build_files.py
+          ls -lh ../examples/
+          ls -lh ../..
+          ls -lh .
           #cd ../../modflow6
           cd ../../mf6-action-test
 
@@ -122,7 +125,7 @@ jobs:
           cd autotest2
           #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
+          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
 
       - name: Build gfortran applications
         if: matrix.FC == 'gfortran'
@@ -132,12 +135,11 @@ jobs:
           cd autotest2
           #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
+          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
 
       - name: Test applications
         working-directory: autotest2
         run: |
-          ls -l modflow-devtools/bin
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
