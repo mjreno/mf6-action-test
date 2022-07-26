@@ -112,7 +112,8 @@ jobs:
           ls -lh ../examples/
           ls -lh ../..
           ls -lh .
-          cd ../../modflow6
+          #cd ../../modflow6
+          cd ../../mf6-action-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'
