@@ -121,7 +121,7 @@ jobs:
           cd autotest2
           #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #pytest -v --durations=0 get_exes.py
+          pytest -v --durations=0 get_exes.py
 
       - name: Build gfortran applications
         if: matrix.FC == 'gfortran'
@@ -131,7 +131,7 @@ jobs:
           cd autotest2
           #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #pytest -v --durations=0 get_exes.py
+          pytest -v --durations=0 get_exes.py
 
       - name: Test applications
         working-directory: autotest2
