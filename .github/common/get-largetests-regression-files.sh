@@ -2,4 +2,4 @@
 
 echo $HOME
 pwd
-git clone https://github.com/MODFLOW-USGS/modflow6-largetestmodels ../modflow6-largetestmodels
+#git clone https://github.com/MODFLOW-USGS/modflow6-largetestmodels ../modflow6-largetestmodels
