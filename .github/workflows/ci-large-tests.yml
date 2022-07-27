@@ -141,7 +141,7 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
           #ls -l modflow-devtools/bin
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
@@ -151,7 +151,7 @@ jobs:
         run: |
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
           #ls -l modflow-devtools/bin
           PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
