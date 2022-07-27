@@ -95,7 +95,7 @@ jobs:
       - name: Clone devtools and make available
         working-directory: autotest2
         run: |
-          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
+          git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           echo "PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: Set and print branch name
