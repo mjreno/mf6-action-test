@@ -92,6 +92,12 @@ jobs:
         run: |
           pip list
 
+      - name: Clone devtools and make available
+        working-directory: autotest2
+        run: |
+          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
+          echo "PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+
       - name: Set and print branch name
         run: |
           .github/common/git-branch-export.sh
@@ -119,20 +125,18 @@ jobs:
           which ifort
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
-          cd autotest2
-          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
-          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
+#          cd autotest2
+#          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+#          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
 
       - name: Build gfortran applications
         if: matrix.FC == 'gfortran'
         run: |
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
-          cd autotest2
-          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
-          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v --durations=0 get_exes.py
+#          cd autotest2
+#          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+#          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
 
       - name: Test applications ifort
         if: matrix.FC == 'ifort'
@@ -141,8 +145,9 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          pytest -v test_eval_gwf_maw04.py
+#          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+#          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: Test applications gfortran
         if: matrix.FC == 'gfortran'
@@ -150,8 +155,9 @@ jobs:
         run: |
           ls -l .
           ls -l modflow-devtools
-          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
-          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          pytest -v test_eval_gwf_maw04.py
+#          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+#          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: exclude unused files from cache on linux
         if: matrix.FC == 'ifort' && steps.cache-install-linux.outputs.cache-hit != 'true'
