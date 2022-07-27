@@ -102,9 +102,9 @@ jobs:
         run: |
           .github/common/git-branch-export.sh
 
-      - name: Get the appropriate large or example regression test files
-        run: |
-          .github/common/get-${{ matrix.test_script }}-regression-files.sh
+#      - name: Get the appropriate large or example regression test files
+#        run: |
+#          .github/common/get-${{ matrix.test_script }}-regression-files.sh
 
       - name: Update flopy MODFLOW 6 classes
         run: |
@@ -112,11 +112,13 @@ jobs:
 
       - name: Run script to build example scripts
         if: matrix.test_script == 'examples'
+        working-directory: autotest2
         run: |
-          cd ../modflow6-examples/etc/
+#          cd ../modflow6-examples/etc/
+          cd modflow-devtools/data/example/modflow6-examples/etc
           python ci_build_files.py
           #cd ../../modflow6
-          cd ../../mf6-action-test
+#          cd ../../mf6-action-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'
