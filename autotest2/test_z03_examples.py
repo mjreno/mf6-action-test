@@ -21,6 +21,7 @@ try:
         is_directory_available,
         Simulation,
         get_mf6_version,
+        set_mf6_regression,
     )
 except:
     from common_regression import (
@@ -30,6 +31,7 @@ except:
         get_select_dirs,
         get_select_packages,
         is_directory_available,
+        set_mf6_regression,
     )
     from simulation import Simulation
     from targets import get_mf6_version
