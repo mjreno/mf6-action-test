@@ -41,6 +41,7 @@ jobs:
       matrix:
         FC: [ ifort, gfortran ]
         test_script: [ largetests, examples ]
+        #test_script: [ examples ]
     defaults:
       run:
         shell: bash -l {0}
@@ -91,10 +92,13 @@ jobs:
         run: |
           pip list
 
-      - name: Clone devtools and add to PYTHONPATH
+      - name: Clone devtools and make available
+        #working-directory: autotest2
         run: |
-          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          git clone -b develop https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
           echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+          ls -l ../modflow-devtools
+          rm -rf ../modflow-devtools/data
 
       - name: Set and print branch name
         run: |
@@ -110,37 +114,51 @@ jobs:
 
       - name: Run script to build example scripts
         if: matrix.test_script == 'examples'
+        #working-directory: autotest2
         run: |
           cd ../modflow6-examples/etc/
+          #cd modflow-devtools/data/example/modflow6-examples/etc
           python ci_build_files.py
-          ls -lh ../examples/
-          cd ../../mf-action-test
+          cd ../../mf6-action-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'
         run: |
           source /opt/intel/oneapi/setvars.sh
+          which ifort
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
+#          cd autotest2
+#          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+#          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
 
       - name: Build gfortran applications
         if: matrix.FC == 'gfortran'
         run: |
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
+#          cd autotest2
+#          #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
+#          git clone --recursive -b testing https://github.com/mjreno/modflow-devtools.git
 
-      - name: Test ifort built applications
+      - name: Test applications ifort
         if: matrix.FC == 'ifort'
-        working-directory: autotest
+        working-directory: autotest2
         run: |
           source /opt/intel/oneapi/setvars.sh
-          pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          #pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          pytest -v test_eval_gwf_maw04.py
+#          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+#          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
-      - name: Test gfortran built applications
+      - name: Test applications gfortran
         if: matrix.FC == 'gfortran'
-        working-directory: autotest
+        working-directory: autotest2
         run: |
-          pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          #pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
+          pytest -v test_eval_gwf_maw04.py
+#          PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v test_eval_gwf_maw04.py -s
+#          #PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: exclude unused files from cache on linux
         if: matrix.FC == 'ifort' && steps.cache-install-linux.outputs.cache-hit != 'true'
