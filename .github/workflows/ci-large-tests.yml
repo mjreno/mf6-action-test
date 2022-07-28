@@ -97,6 +97,8 @@ jobs:
         run: |
           ls -l ..
           ls -l ../..
+          cd ../modflow-devtools
+          cd ../mf6-actions-test
           #ls -l ../modflow-devtools
           #git clone --recursive -b testInputData https://github.com/mjreno/modflow-devtools.git
           #echo "PYTHONPATH=$PWD/modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
@@ -120,7 +122,7 @@ jobs:
           cd ../modflow6-examples/etc/
           #cd modflow-devtools/data/example/modflow6-examples/etc
           python ci_build_files.py
-          cd ../../modflow6
+          cd ../../mf6-actions-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'
