@@ -118,7 +118,7 @@ jobs:
           cd ../modflow6-examples/etc/
           #cd modflow-devtools/data/example/modflow6-examples/etc
           python ci_build_files.py
-          cd ../../mf6-actions-test
+          cd ../../mf6-action-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'

@@ -6,5 +6,5 @@ if git show-ref -q --heads ${BRANCH}; then
 else echo using modflow6-testmodels branch master;  fi
 git branch
 #cd ../modflow6
-cd ../mf6-actions-test
+cd ../mf6-action-test
 ls ../
