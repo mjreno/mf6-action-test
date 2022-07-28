@@ -23,6 +23,7 @@ try:
         get_mf6_version,
         set_mf6_regression,
     )
+    print("using modflow_devtools")
 except:
     from common_regression import (
         get_example_basedir,
