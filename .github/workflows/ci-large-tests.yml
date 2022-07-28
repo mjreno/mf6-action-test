@@ -114,7 +114,7 @@ jobs:
           cd ../modflow6-examples/etc/
           python ci_build_files.py
           ls -lh ../examples/
-          cd ../../mf-action-test
+          cd ../../mf6-action-test
 
       - name: activate ifort and build applications
         if: matrix.FC == 'ifort'
@@ -131,14 +131,14 @@ jobs:
 
       - name: Test ifort built applications
         if: matrix.FC == 'ifort'
-        working-directory: autotest
+        working-directory: autotest2
         run: |
           source /opt/intel/oneapi/setvars.sh
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: Test gfortran built applications
         if: matrix.FC == 'gfortran'
-        working-directory: autotest
+        working-directory: autotest2
         run: |
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
