@@ -171,7 +171,7 @@ mf6_models = get_mf6_models()
     "exdir",
     mf6_models,
 )
-def test_mf6model(exdir, mf6testctx=None):
+def test_mf6model(exdir, mf6testctx):
     # run the test model
 
     exe_dict=None
