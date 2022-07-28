@@ -11,16 +11,28 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from modflow_devtools import (
-    get_example_basedir,
-    get_example_dirs,
-    get_home_dir,
-    get_select_dirs,
-    get_select_packages,
-    is_directory_available,
-    Simulation,
-    get_mf6_version,
-)
+try:
+    from modflow_devtools import (
+        get_example_basedir,
+        get_example_dirs,
+        get_home_dir,
+        get_select_dirs,
+        get_select_packages,
+        is_directory_available,
+        Simulation,
+        get_mf6_version,
+    )
+except:
+    from common_regression import (
+        get_example_basedir,
+        get_example_dirs,
+        get_home_dir,
+        get_select_dirs,
+        get_select_packages,
+        is_directory_available,
+    )
+    from simulation import Simulation
+    from targets import get_mf6_version
 
 # find path to modflow6-examples directory
 home = get_home_dir()
