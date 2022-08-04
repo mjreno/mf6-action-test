@@ -322,7 +322,12 @@ def test_gwt_ims_issue655(idx, run, tmpdir, testbin):
     test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(str(tmpdir), exfunc=eval_transport, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_transport,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
