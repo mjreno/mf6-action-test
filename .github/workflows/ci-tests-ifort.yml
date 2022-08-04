@@ -55,6 +55,11 @@ jobs:
         run: |
           pip list
 
+      - name: Clone devtools and add to PYTHONPATH
+        run: |
+          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+
       - name: cache install ifort on linux
         if: runner.os == 'Linux'
         id: cache-install-linux

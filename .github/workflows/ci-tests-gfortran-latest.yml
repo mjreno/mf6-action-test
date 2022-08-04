@@ -42,6 +42,11 @@ jobs:
         run: |
           .github/common/link-gfortranlib5.sh
 
+      - name: Clone devtools and add to PYTHONPATH
+        run: |
+          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+
       - name: Setup symbolic links on Linux
         if: runner.os == 'Linux'
         run: |
