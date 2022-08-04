@@ -43,7 +43,7 @@ def tmpdir(tmpdir_factory, request) -> Path:
             outdir = Path(os.path.join("autotest-keep", "pytest"))
         else:
             outdir = Path(keep)
-        tokens = re.split("\[|\]", temp.name)
+        tokens = re.split("\\[|\\]", temp.name)
         if len(tokens) == 1:
             copytree(temp, outdir / tokens[0][:-1], dirs_exist_ok=True)
         else:
