@@ -121,5 +121,4 @@ jobs:
         shell: cmd /C CALL {0}
         run: |
           call micromamba activate modflow6
-#          call ".github/intel-scripts/build_windows.bat"
           pytest -v -n=auto --durations=0
