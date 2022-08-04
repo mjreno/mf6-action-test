@@ -11,14 +11,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["csub_dbgeo01a"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["csub_dbgeo01a"]
 
 ndcell = [19]
 strt = [0.0]
@@ -28,10 +31,10 @@ bso = [True]
 # sstate = [None, True]
 
 # run all examples on Travis
-# continuous_integration = [True for idx in range(len(exdirs))]
+# continuous_integration = [True for idx in range(len(runs))]
 # the delay bed problems only run on the development version of MODFLOW-2005
 # set travis to True when version 1.13.0 is released
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -221,7 +224,7 @@ def build_model(idx, dir):
     geo, es = calc_stress(sgm, sgs, strt[idx], botm)
     sub6 = [[0, (0, 0, 1), "delay", -1.0, thick, 1.0, cc, cr, theta, kv, 1.0]]
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -355,7 +358,7 @@ def eval_sub(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.comp.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.comp.cmp.out"
     )
     f = open(fpth, "w")
     line = f"{'TOTIM':>15s}"
@@ -383,13 +386,13 @@ def eval_sub(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_dbgeo01(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -401,23 +404,40 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(Simulation(dir, exfunc=eval_sub, exe_dict=r_exe, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_sub,
+        exe_dict=r_exe,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir, exfunc=eval_sub, exe_dict=replace_exe, idxsim=idx
+            simdir,
+            exfunc=eval_sub,
+            exe_dict=replace_exe,
+            testbin=mf6_testbin,
+            idxsim=idx
         )
         test.run_mf6(sim)
 

@@ -11,12 +11,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-name = "gwf_mvr01"
-ws = os.path.join("temp", name)
-exdirs = [ws]
+runs = ["gwf_mvr01"]
 
 
 def build_model(idx, dir):
@@ -43,9 +47,11 @@ def build_model(idx, dir):
     newtonoptions = "NEWTON"
     imsla = "BICGSTAB"
 
+    name = runs[idx]
+
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
-        sim_name=name, version="mf6", exe_name="mf6", sim_ws=ws
+        sim_name=name, version="mf6", exe_name="mf6", sim_ws=dir
     )
     # create tdis package
     tdis = flopy.mf6.ModflowTdis(
@@ -457,30 +463,48 @@ def eval_model(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.mvr
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_mvr01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_model, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_model,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_model, idxsim=idx)
-        test.run_mf6(sim)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        test.run_mf6(Simulation(
+            simdir,
+            exfunc=eval_model,
+            testbin=mf6_testbin,
+            idxsim=idx
+        ))
 
 
 if __name__ == "__main__":

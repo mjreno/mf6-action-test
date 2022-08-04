@@ -19,15 +19,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
+try:
+    from modflow_devtools import MFTestContext
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 newtonoptions = [None, "NEWTON", "NEWTON UNDER_RELAXATION"]
 test = "maw_obs"
 
 
-def build_model(simdir):
+def build_model(simdir, mf6_exe):
 
     nlay, nrow, ncol = 1, 1, 3
     nper = 3
@@ -182,11 +184,10 @@ def build_model(simdir):
 
 
 @pytest.mark.gwf
-@pytest.mark.gwf_maw
-def test_gwf_maw_obs(tmpdir):
-    print(str(tmpdir))
+@pytest.mark.maw
+def test_gwf_maw_obs(tmpdir, mf6testctx):
     # build the models
-    sim = build_model(str(tmpdir))
+    sim = build_model(str(tmpdir), mf6testctx.get_target_dictionary()["mf6"])
 
     # write model input
     sim.write_simulation()
@@ -234,12 +235,15 @@ def test_gwf_maw_obs(tmpdir):
 
     assert success, "model rerun failed"
 
-    #shutil.rmtree(exdir, ignore_errors=True)
+    # shutil.rmtree(exdir, ignore_errors=True)
 
 
 def main():
-    test_gwf_maw_obs()
-    return
+    from conftest import mf6_testbin
+
+    tmpdir = os.path.join("autotest-keep", "standalone", "test_gwf_maw_obs")
+    ctx = MFTestContext(testbin=mf6_testbin)
+    test_gwf_maw_obs(tmpdir, ctx)
 
 
 if __name__ == "__main__":

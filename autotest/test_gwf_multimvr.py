@@ -5,8 +5,6 @@ import shutil
 import numpy as np
 import pytest
 
-import targets
-
 try:
     import flopy
     from flopy.utils.lgrutil import Lgr
@@ -16,15 +14,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
-
-mf6exe = os.path.abspath(targets.target_dict["mf6"])
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 name = "gwf"
-mvr_scens = ["mltmvr", "mltmvr5050", "mltmvr7525"]
-ws = os.path.join("temp", name)
-exdirs = [f"{ws}-{s}" for s in mvr_scens]
+runs = ["mltmvr", "mltmvr5050", "mltmvr7525"]
 sim_workspaces = []
 gwf_names = []
 
@@ -989,7 +989,7 @@ def add_sim_mvr(sim, gwfname, gwfnamec, remaining_frac=None):
 def build_model(idx, sim_ws):
 
     scen_nm, conns, frac = (
-        mvr_scens[idx],
+        runs[idx],
         scen_conns[idx],
         parent_mvr_frac[idx],
     )
@@ -1022,8 +1022,8 @@ def check_simulation_output(sim):
     sim_srch_str = " WATER MOVER PACKAGE (MVR) FLOW RATES "
 
     # cur_ws, gwfparent = exdirs[idx], gwf_names[idx]
-    cur_ws = exdirs[idx]
-    gwfparent = name + "_" + mvr_scens[idx] + "_p"
+    cur_ws = sim.simpath #exdirs[idx]
+    gwfparent = name + "_" + runs[idx] + "_p"
     with open(os.path.join(cur_ws, gwfparent + ".lst"), "r") as gwf_lst, open(
         os.path.join(cur_ws, "mfsim.lst"), "r"
     ) as sim_lst:
@@ -1086,7 +1086,7 @@ def check_simulation_output(sim):
     q_target = 214.25
     assert math.isclose(parent_sfr_last_reach_flow, q_target, rel_tol=0.1,), (
         "Flow in the last reach of scenario "
-        + mvr_scens[idx]
+        + runs[idx]
         + " = "
         + str(parent_sfr_last_reach_flow)
         + ", whereas the target flow "
@@ -1131,39 +1131,55 @@ def check_simulation_output(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.mvr
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_multimvr(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
-    # build the models
-    test.build_mf6_models(build_model, idx, exdir)
-
-    test.run_mf6(
-        Simulation(
-            exdir,
-            exfunc=check_simulation_output,
-            idxsim=idx,
-        )
+    sim = Simulation(
+        str(tmpdir),
+        exfunc=check_simulation_output,
+        testbin=testbin,
+        idxsim=idx,
     )
+    global mf6exe
+    mf6exe = sim.Ctx().get_target_dictionary()["mf6"]
+
+    # build the models
+    test.build_mf6_models(build_model, idx, str(tmpdir))
+
+    test.run_mf6(sim)
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+
         sim = Simulation(
-            exdir,
+            simdir,
             exfunc=check_simulation_output,
+            testbin=mf6_testbin,
             idxsim=idx,
         )
+        global mf6exe
+        mf6exe = sim.Ctx().get_target_dictionary()["mf6"]
+
+        test.build_mf6_models(build_model, idx, simdir)
+
         test.run_mf6(sim)
 
     return

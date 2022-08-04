@@ -11,16 +11,20 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = [
+runs = [
     "gwf_sto03a",
     "gwf_sto03b",
 ]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
 
 newton = (
     False,
@@ -32,12 +36,12 @@ cmppth = "mf6"
 ddir = "data"
 
 ## run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # use default executable
 replace_exe = None
 
-htol = [None for idx in range(len(exdirs))]
+htol = [None for idx in range(len(runs))]
 dtol = 1e-3
 budtol = 1e-2
 
@@ -195,7 +199,7 @@ def get_model(name, ws, newton_bool, offset=0.0):
 
 # variant SUB package problem 3
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
     ws = dir
 
     # build model with no offset
@@ -262,7 +266,7 @@ def eval_sto(sim):
     assert np.allclose(base_cmp, offset_cmp), msg
 
     print("evaluating storage...")
-    name = ex[sim.idxsim]
+    name = runs[sim.idxsim]
     fpth = os.path.join(sim.simpath, f"{name}.cbc")
     base_cbc = flopy.utils.CellBudgetFile(fpth, precision="double")
     fpth = os.path.join(sim.simpath, cmppth, f"{name}.cbc")
@@ -286,11 +290,13 @@ def eval_sto(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.sto
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_sto03(idx, run, tmpdir, testbin):
 
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
@@ -303,30 +309,43 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
     test.run_mf6(
         Simulation(
-            dir, exfunc=eval_sto, exe_dict=r_exe, htol=htol[idx], idxsim=idx
+            str(tmpdir),
+            exfunc=eval_sto,
+            exe_dict=r_exe,
+            testbin=testbin,
+            htol=htol[idx],
+            idxsim=idx
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir,
+            simdir,
             exfunc=eval_sto,
             exe_dict=replace_exe,
+            testbin=mf6_testbin,
             htol=htol[idx],
             idxsim=idx,
         )

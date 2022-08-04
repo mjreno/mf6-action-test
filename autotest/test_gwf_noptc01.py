@@ -11,26 +11,30 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["gwf_noptc01", "gwf_noptc02", "gwf_noptc03"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["gwf_noptc01", "gwf_noptc02", "gwf_noptc03"]
 
 no_ptcrecords = ["FIRST", "ALL", None]
 
 ddir = "data"
 
 ## run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 # replace_exe = {'mf2005': 'mf2005devdbl'}
 replace_exe = None
 
-htol = [None for idx in range(len(exdirs))]
+htol = [None for idx in range(len(runs))]
 
 # static model data
 # temporal discretization
@@ -72,7 +76,7 @@ rech = {0: 0.001}
 
 
 def get_model(idx, dir, no_ptcrecord):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -157,11 +161,13 @@ def build_model(idx, dir):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.opt
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_noptc01(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -173,23 +179,38 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(Simulation(dir, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
 
     return

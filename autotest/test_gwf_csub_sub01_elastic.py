@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,8 +11,15 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 cmppth = "mf6"
 
@@ -28,16 +27,12 @@ paktest = "csub"
 dtol = 1e-3
 budtol = 1e-2
 
-ex = ["csub_sub01_elasa"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["csub_sub01_elasa"]
 
 ndcell = [19]
 
 # run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -119,7 +114,7 @@ sub6 = [
 
 
 def build_mf6(idx, ws, newton=None):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
@@ -245,7 +240,7 @@ def eval_sub(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.comp.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.comp.cmp.out"
     )
     f = open(fpth, "w")
     line = f"{'TOTIM':>15s}"
@@ -280,7 +275,7 @@ def eval_sub(sim):
 # compare cbc and lst budgets
 def cbc_compare(sim):
     # open cbc file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
 
     # build list of cbc data to retrieve
@@ -297,7 +292,7 @@ def cbc_compare(sim):
             bud_lst.append(f"{t}_OUT")
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -344,7 +339,7 @@ def cbc_compare(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.bud.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -375,13 +370,13 @@ def cbc_compare(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_sub01_elastic(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -393,22 +388,39 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(Simulation(dir, exfunc=eval_sub, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_sub,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_sub, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_sub,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

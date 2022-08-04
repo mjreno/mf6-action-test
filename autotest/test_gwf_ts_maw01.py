@@ -11,17 +11,21 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        eval_bud_diff,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "maw"
-ex = [f"ts_{paktest}01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = [f"ts_{paktest}01"]
 
 # run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -416,7 +420,7 @@ def get_model(ws, name, timeseries=False):
 
 
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -431,15 +435,14 @@ def build_model(idx, dir):
 
 def eval_model(sim):
     print("evaluating model budgets...")
-    from budget_file_compare import eval_bud_diff
 
     # get ia/ja from binary grid file
-    fname = f"{os.path.basename(sim.name)}.dis.grb"
+    fname = f"{runs[sim.idxsim]}.dis.grb"
     fpth = os.path.join(sim.simpath, fname)
     grbobj = flopy.mf6.utils.MfGrdFile(fpth)
     ia = grbobj._datadict["IA"] - 1
 
-    fname = f"{os.path.basename(sim.name)}.cbc"
+    fname = f"{runs[sim.idxsim]}.cbc"
 
     # open first gwf cbc file
     fpth = os.path.join(sim.simpath, fname)
@@ -450,12 +453,12 @@ def eval_model(sim):
     cobj1 = flopy.utils.CellBudgetFile(fpth, precision="double")
 
     # define file path and evaluate difference
-    fname = f"{os.path.basename(sim.name)}.cbc.cmp.out"
+    fname = f"{runs[sim.idxsim]}.cbc.cmp.out"
     fpth = os.path.join(sim.simpath, fname)
     eval_bud_diff(fpth, cobj0, cobj1, ia)
 
     # evaluate the sfr package budget file
-    fname = f"{os.path.basename(sim.name)}.{paktest}.cbc"
+    fname = f"{runs[sim.idxsim]}.{paktest}.cbc"
     # open first sfr cbc file
     fpth = os.path.join(sim.simpath, fname)
     cobj0 = flopy.utils.CellBudgetFile(fpth, precision="double")
@@ -465,7 +468,7 @@ def eval_model(sim):
     cobj1 = flopy.utils.CellBudgetFile(fpth, precision="double")
 
     # define file path and evaluate difference
-    fname = f"{os.path.basename(sim.name)}.{paktest}.cbc.cmp.out"
+    fname = f"{runs[sim.idxsim]}.{paktest}.cbc.cmp.out"
     fpth = os.path.join(sim.simpath, fname)
     eval_bud_diff(fpth, cobj0, cobj1)
 
@@ -473,32 +476,49 @@ def eval_model(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.maw
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_ts_maw01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_model, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_model,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_model, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_model,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

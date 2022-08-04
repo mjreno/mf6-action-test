@@ -19,14 +19,6 @@ import pytest
 from modflowapi import ModflowApi
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -34,13 +26,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation, api_return
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+        api_return,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["libgwf_ifmod01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["libgwf_ifmod01"]
 
 # global convenience...
 name_left = "leftmodel"
@@ -220,7 +216,7 @@ def get_model(dir, name):
 def build_model(idx, dir):
     # build MODFLOW 6 files
     ws = dir
-    name = ex[idx]
+    name = runs[idx]
     sim = get_model(ws, name)
 
     # build comparison model
@@ -233,7 +229,7 @@ def build_model(idx, dir):
 def api_func(exe, idx, model_ws=None):
     success = False
 
-    name = ex[idx].upper()
+    name = runs[idx].upper()
     if model_ws is None:
         model_ws = "."
 
@@ -331,29 +327,49 @@ def check_interface_models(mf6):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.api
+@pytest.mark.ifmod
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_libmf6_ifmod01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, idxsim=idx, api_func=api_func))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        testbin=testbin,
+        idxsim=idx,
+        api_func=api_func
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, idxsim=idx, api_func=api_func)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            testbin=mf6_testbin,
+            idxsim=idx,
+            api_func=api_func
+        )
         test.run_mf6(sim)
 
     return

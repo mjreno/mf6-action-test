@@ -22,8 +22,8 @@ try:
         Simulation,
     )
 except:
-    from framework import testing_framework
-    from simulation import Simulation
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 runs = ["gwf_ats_lak_01a"]
 
@@ -443,13 +443,13 @@ def eval_results(sim):
 
 # - No need to change any code below
 @pytest.mark.gwf
-@pytest.mark.gwf_ats
-@pytest.mark.gwf_lak
+@pytest.mark.ats
+@pytest.mark.lak
 @pytest.mark.parametrize(
     "idx, run",
     list(enumerate(runs)),
 )
-def test_gwf_ats_lak01(idx, run, tmpdir):
+def test_gwf_ats_lak01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
@@ -457,22 +457,34 @@ def test_gwf_ats_lak01(idx, run, tmpdir):
     test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(str(tmpdir), exfunc=eval_results, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_results,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
     for idx, run in enumerate(runs):
         simdir = os.path.join(
-          'results',
-          os.path.splitext(os.path.basename(__file__))[0].split('_', 1)[1],
-          run
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
         )
         test.build_mf6_models(build_model, idx, simdir)
-        sim = Simulation(simdir, exfunc=eval_results, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_results,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
 
 

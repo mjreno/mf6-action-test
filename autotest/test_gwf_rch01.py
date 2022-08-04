@@ -15,14 +15,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -30,15 +22,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["rch01a", "rch01b", "rch01c"]
+runs = ["rch01a", "rch01b", "rch01c"]
 irch = [None, 0, [1, 1, 0, 1, 1]]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-
 
 def build_model(idx, dir):
 
@@ -164,30 +158,48 @@ def eval_model(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.rch
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_rch01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_model, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_model,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_model, idxsim=idx)
-        test.run_mf6(sim)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        test.run_mf6(Simulation(
+            simdir,
+            exfunc=eval_model,
+            testbin=mf6_testbin,
+            idxsim=idx
+        ))
 
 
 if __name__ == "__main__":

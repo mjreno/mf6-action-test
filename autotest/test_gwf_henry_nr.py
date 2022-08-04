@@ -18,14 +18,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
-from targets import get_mf6_version
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["gwf_henrynr01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["gwf_henrynr01"]
 
 # global model variables
 nlay = 20
@@ -81,7 +84,7 @@ def sinfunc(a, b, c, d, x):
 def build_model(idx, dir):
 
     ws = dir
-    name = ex[idx]
+    name = runs[idx]
 
     nrow = 1
     delr = lx / ncol
@@ -245,10 +248,10 @@ def build_model(idx, dir):
     return sim, None
 
 
-def set_make_comparison():
-    version = get_mf6_version()
+def set_make_comparison(context):
+    version = context.get_mf6_version()
     print(f"MODFLOW version='{version}'")
-    version = get_mf6_version(version="mf6-regression")
+    version = context.get_mf6_version(version="mf6-regression")
     print(f"MODFLOW regression version='{version}'")
     if version in ("6.2.1",):
         make_comparison = False
@@ -258,42 +261,54 @@ def set_make_comparison():
 
 
 # - No need to change any code below
+@pytest.mark.gwf
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_henry_nr(idx, run, tmpdir, testbin, mf6testctx):
     # initialize testing framework
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     test.run_mf6(
         Simulation(
-            dir,
+            str(tmpdir),
+            testbin=testbin,
             idxsim=idx,
             mf6_regression=True,
             cmp_verbose=False,
-            make_comparison=set_make_comparison(),
+            make_comparison=set_make_comparison(mf6testctx),
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
+    ctx = MFTestContext(testbin=mf6_testbin)
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, on_dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            on_dir,
+            simdir,
+            testbin=mf6_testbin,
             idxsim=idx,
             mf6_regression=True,
             cmp_verbose=True,
-            make_comparison=set_make_comparison(),
+            make_comparison=set_make_comparison(ctx),
         )
         test.run_mf6(sim)
 

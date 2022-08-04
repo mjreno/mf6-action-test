@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,10 +11,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = (
+runs = (
     "csub_db01a",
     "csub_db01b",
     "csub_db01c",
@@ -30,9 +29,6 @@ ex = (
     "csub_db01e",
     "csub_db01f",
 )
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
 newtons = (
     True,
     True,
@@ -65,8 +61,6 @@ convertible = (
     False,
     False,
 )
-
-ddir = "data"
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -132,7 +126,7 @@ H0 = 0.0
 
 
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
     newton = newtons[idx]
 
     # build MODFLOW 6 files
@@ -359,7 +353,7 @@ def eval_comp(sim):
         assert False, f'could not load data from "{fpth}"'
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -371,7 +365,7 @@ def eval_comp(sim):
     d = np.recarray(nbud, dtype=dtype)
     for key in bud_lst:
         d[key] = 0.0
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
     kk = cobj.get_kstpkper()
     times = cobj.get_times()
@@ -404,7 +398,7 @@ def eval_comp(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.bud.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -433,13 +427,13 @@ def eval_comp(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_db01_nr(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -451,25 +445,42 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     test.run_mf6(
         Simulation(
-            dir, exfunc=eval_comp, exe_dict=r_exe, htol=htol, idxsim=idx
+            str(tmpdir),
+            exfunc=eval_comp,
+            exe_dict=r_exe,
+            testbin=testbin,
+            htol=htol,
+            idxsim=idx
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir, exfunc=eval_comp, exe_dict=replace_exe, htol=htol, idxsim=idx
+            simdir,
+            exfunc=eval_comp,
+            testbin=mf6_testbin,
+            exe_dict=replace_exe,
+            htol=htol,
+            idxsim=idx
         )
         test.run_mf6(sim)
 

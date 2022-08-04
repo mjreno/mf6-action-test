@@ -21,14 +21,15 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-from framework import set_teardown_test
-
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
-testname = "gwf_errors"
-testdir = os.path.join("temp", testname)
-os.makedirs(testdir, exist_ok=True)
-everything_was_successful = True
+try:
+    from modflow_devtools import (
+        get_disu_kwargs,
+        set_teardown_test,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 teardown_test = set_teardown_test()
 
@@ -48,7 +49,7 @@ def run_mf6(argv, ws):
     return proc.returncode, buff
 
 
-def run_mf6_error(ws, err_str_list):
+def run_mf6_error(ws, err_str_list, mf6_exe):
     returncode, buff = run_mf6([mf6_exe], ws)
     msg = "mf terminated with error"
     if teardown_test:
@@ -79,6 +80,7 @@ def get_minimal_gwf_simulation(
     ickwargs=None,
     npfkwargs=None,
     chdkwargs=None,
+    mf6_exe=None,
 ):
     if simkwargs is None:
         simkwargs = {}
@@ -129,10 +131,10 @@ def get_minimal_gwf_simulation(
     return sim
 
 
-def test_simple_model_success():
+def simple_model_success(testdir, mf6_exe):
     # test a simple model to make sure it runs and terminates correctly
-    ws = f"{testdir}_sim0"
-    sim = get_minimal_gwf_simulation(ws)
+    ws = testdir
+    sim = get_minimal_gwf_simulation(ws, mf6_exe=mf6_exe)
     sim.write_simulation()
     returncode, buff = run_mf6([mf6_exe], ws)
     assert returncode == 0, "mf6 failed for simple model."
@@ -145,31 +147,31 @@ def test_simple_model_success():
     return
 
 
-def test_empty_folder():
+def empty_folder(testdir, mf6_exe):
     with pytest.raises(RuntimeError):
         # make sure mf6 fails when there is no simulation name file
         err_str = "mf6: mfsim.nam is not present in working directory."
-        run_mf6_error(testdir, err_str)
+        run_mf6_error(testdir, err_str, mf6_exe)
 
 
-def test_sim_errors():
+def sim_errors(testdir, mf6_exe):
     with pytest.raises(RuntimeError):
         # verify that the correct number of errors are reported
-        ws = f"{testdir}_sim1"
+        ws = testdir
         chdkwargs = {}
         chdkwargs["stress_period_data"] = {
             0: [[(0, 0, 0), 0.0] for i in range(10)]
         }
-        sim = get_minimal_gwf_simulation(ws, chdkwargs=chdkwargs)
+        sim = get_minimal_gwf_simulation(ws, chdkwargs=chdkwargs, mf6_exe=mf6_exe)
         sim.write_simulation()
         err_str = ["1. Cell is already a constant head ((1,1,1))."]
-        run_mf6_error(ws, err_str)
+        run_mf6_error(ws, err_str, mf6_exe)
 
 
-def test_sim_maxerrors():
+def sim_maxerrors(testdir, mf6_exe):
     with pytest.raises(RuntimeError):
         # verify that the maxerrors keyword gives the correct error output
-        ws = f"{testdir}_sim2"
+        ws = testdir
         simnamefilekwargs = {}
         simnamefilekwargs["maxerrors"] = 5
         chdkwargs = {}
@@ -177,7 +179,7 @@ def test_sim_maxerrors():
             0: [[(0, 0, 0), 0.0] for i in range(10)]
         }
         sim = get_minimal_gwf_simulation(
-            ws, simnamefilekwargs=simnamefilekwargs, chdkwargs=chdkwargs
+            ws, simnamefilekwargs=simnamefilekwargs, chdkwargs=chdkwargs, mf6_exe=mf6_exe
         )
         sim.write_simulation()
         err_str = [
@@ -186,14 +188,12 @@ def test_sim_maxerrors():
             "UNIT ERROR REPORT:",
             "1. ERROR OCCURRED WHILE READING FILE 'test.chd'",
         ]
-        run_mf6_error(ws, err_str)
+        run_mf6_error(ws, err_str, mf6_exe)
 
 
-def test_disu_errors():
+def disu_errors(testdir, mf6_exe):
     with pytest.raises(RuntimeError):
-        from disu_util import get_disu_kwargs
-
-        ws = f"{testdir}_sim3"
+        ws = testdir
         disukwargs = get_disu_kwargs(
             3, 3, 3, np.ones(3), np.ones(3), 0, [-1, -2, -3]
         )
@@ -202,7 +202,7 @@ def test_disu_errors():
         top[9] = 2.0
         bot[9] = 1.0
         sim = get_minimal_gwf_simulation(
-            ws, disukwargs=disukwargs, chdkwargs={"stress_period_data": [[]]}
+            ws, disukwargs=disukwargs, chdkwargs={"stress_period_data": [[]],}, mf6_exe=mf6_exe
         )
         sim.write_simulation()
         err_str = [
@@ -212,30 +212,30 @@ def test_disu_errors():
             "UNIT ERROR REPORT:"
             "1. ERROR OCCURRED WHILE READING FILE './test.disu'",
         ]
-        run_mf6_error(ws, err_str)
+        run_mf6_error(ws, err_str, mf6_exe)
 
 
-def test_solver_fail():
+def solver_fail(testdir, mf6_exe):
     with pytest.raises(RuntimeError):
         # test failed to converge
-        ws = f"{testdir}_sim4"
+        ws = testdir
         imskwargs = {"inner_maximum": 1, "outer_maximum": 2}
-        sim = get_minimal_gwf_simulation(ws, imskwargs=imskwargs)
+        sim = get_minimal_gwf_simulation(ws, imskwargs=imskwargs, mf6_exe=mf6_exe)
         sim.write_simulation()
         err_str = [
             "Simulation convergence failure occurred 1 time(s).",
             "Premature termination of simulation.",
         ]
-        run_mf6_error(ws, err_str)
+        run_mf6_error(ws, err_str, mf6_exe)
 
 
-def test_fail_continue_success():
+def fail_continue_success(testdir, mf6_exe):
     # test continue but failed to converge
-    ws = f"{testdir}_sim5"
+    ws = testdir
     tdiskwargs = {"nper": 1, "perioddata": [(10.0, 10, 1.0)]}
     imskwargs = {"inner_maximum": 1, "outer_maximum": 2}
     sim = get_minimal_gwf_simulation(
-        ws, imskwargs=imskwargs, tdiskwargs=tdiskwargs
+        ws, imskwargs=imskwargs, tdiskwargs=tdiskwargs, mf6_exe=mf6_exe
     )
     sim.name_file.continue_ = True
     sim.write_simulation()
@@ -256,14 +256,41 @@ def test_fail_continue_success():
     return
 
 
+tests = [
+    empty_folder,
+    simple_model_success,
+    sim_errors,
+    sim_maxerrors,
+    disu_errors,
+    solver_fail,
+    fail_continue_success,
+]
+
+
+@pytest.mark.gwf
+@pytest.mark.sys
+@pytest.mark.disu
+@pytest.mark.parametrize(
+    "idx, test",
+    list(enumerate(tests)),
+)
+def test_gwf_errors(idx, test, tmpdir, mf6testctx):
+    test(str(tmpdir), mf6testctx.get_target_dictionary()["mf6"])
+
+
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
-    test_empty_folder()
-    test_simple_model_success()
-    test_sim_errors()
-    test_sim_maxerrors()
-    test_disu_errors()
-    test_solver_fail()
-    test_fail_continue_success()
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    for idx, test in enumerate(tests):
+        testdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test.__name__,
+        )
+        os.makedirs(testdir, exist_ok=True)
+        test(testdir, ctx.get_target_dictionary()["mf6"])

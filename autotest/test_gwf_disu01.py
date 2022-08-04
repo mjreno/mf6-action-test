@@ -7,6 +7,7 @@ Test to make sure that disu is working correctly
 import os
 import shutil
 import subprocess
+import pytest
 
 import numpy as np
 
@@ -18,37 +19,23 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-from framework import set_teardown_test
+try:
+    from modflow_devtools import (
+        get_disu_kwargs,
+        set_teardown_test,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
-testname = "gwf_disu01"
-testdir = os.path.join("temp", testname)
-everything_was_successful = True
 
 teardown_test = set_teardown_test()
 
 
-def run_mf6(argv, ws):
-    buff = []
-    proc = subprocess.Popen(
-        argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=ws
-    )
-    result, error = proc.communicate()
-    if result is not None:
-        c = result.decode("utf-8")
-        c = c.rstrip("\r\n")
-        print(f"{c}")
-        buff.append(c)
-
-    return proc.returncode, buff
-
-
-def test_disu_simple():
-    from disu_util import get_disu_kwargs
-
+def disu_simple(rundir, mf6_exe):
     name = "disu01a"
-    ws = f"{testdir}_{name}"
+    ws = rundir
     nlay = 3
     nrow = 3
     ncol = 3
@@ -75,11 +62,9 @@ def test_disu_simple():
     return
 
 
-def test_disu_idomain_simple():
-    from disu_util import get_disu_kwargs
-
+def disu_idomain_simple(rundir, mf6_exe):
     name = "disu01b"
-    ws = f"{testdir}_{name}"
+    ws = rundir
     nlay = 3
     nrow = 3
     ncol = 3
@@ -140,9 +125,31 @@ def test_disu_idomain_simple():
     return
 
 
+tests = [disu_simple, disu_idomain_simple]
+
+
+@pytest.mark.gwf
+@pytest.mark.disu
+@pytest.mark.parametrize(
+    "idx, test",
+    list(enumerate(tests)),
+)
+def test_gwf_disu01(idx, test, tmpdir, mf6testctx):
+    test(str(tmpdir), mf6testctx.get_target_dictionary()["mf6"])
+
+
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
-    test_disu_simple()
-    test_disu_idomain_simple()
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    for idx, test in enumerate(tests):
+        testdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test.__name__,
+        )
+        test(testdir, ctx.get_target_dictionary()["mf6"])

@@ -13,8 +13,14 @@ except:
 
 from flopy.utils.lgrutil import Lgr
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 # Test for the interface model approach.
 # It compares the result of a single, strongly anisotropic model
@@ -41,10 +47,7 @@ from simulation import Simulation
 # the left part of the full model, and similar for right: they
 # should be identical. Finally, the budget error is checked.
 
-ex = ["ifmod_xt3d02"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["ifmod_xt3d02"]
 
 # global convenience...
 mname_ref = "refmodel"
@@ -56,7 +59,7 @@ useXT3D = True
 
 
 def get_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # parameters and spd
     # tdis
@@ -427,30 +430,51 @@ def compare_to_ref(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.ifmod
+@pytest.mark.exg
+@pytest.mark.npf
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_ifmod_xt3d02(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(exdir, exfunc=compare_to_ref, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=compare_to_ref,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
-        sim = Simulation(exdir, exfunc=compare_to_ref, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=compare_to_ref,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

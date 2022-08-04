@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,22 +11,25 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "drn"
 budtol = 1e-2
 
-ex = ["drn_ddrn01a", "drn_ddrn01b"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["drn_ddrn01a", "drn_ddrn01b"]
 
 newton = [False, True]
 
 # run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -139,7 +134,7 @@ def get_model(idxsim, ws, name):
 
 
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -178,7 +173,7 @@ def eval_disch(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.disc.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.disc.cmp.out"
     )
     f = open(fpth, "w")
     line = f"{'TOTIM':>15s}"
@@ -219,13 +214,13 @@ def drain_smoothing(xdiff, xrange, newton=False):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.drn
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_drn_ddrn01(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -237,26 +232,43 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
     test.run_mf6(
-        Simulation(dir, exfunc=eval_disch, exe_dict=r_exe, idxsim=idx)
+        Simulation(
+            str(tmpdir),
+            exfunc=eval_disch,
+            exe_dict=r_exe,
+            testbin=testbin,
+            idxsim=idx
+        )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir, exfunc=eval_disch, exe_dict=replace_exe, idxsim=idx
+            simdir,
+            exfunc=eval_disch,
+            exe_dict=replace_exe,
+            testbin=mf6_testbin,
+            idxsim=idx
         )
         test.run_mf6(sim)
     return

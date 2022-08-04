@@ -45,13 +45,16 @@ except:
 
 from flopy.utils.lgrutil import Lgr
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["ifmod_vert"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["ifmod_vert"]
 
 parent_name = "parent"
 child_name = "child"
@@ -67,7 +70,7 @@ def get_model(idx, dir):
     global child_domain
     global hclose
 
-    name = ex[idx]
+    name = runs[idx]
 
     # tdis period data
     nper = 1
@@ -295,30 +298,50 @@ def eval_heads(sim):
     return
 
 
+@pytest.mark.gwf
+@pytest.mark.ifmod
+@pytest.mark.exg
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_ifmod_vert(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(exdir, exfunc=eval_heads, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_heads,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
-        sim = Simulation(exdir, exfunc=eval_heads, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_heads,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

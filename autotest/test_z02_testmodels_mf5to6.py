@@ -7,14 +7,6 @@ import time
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -22,18 +14,24 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from common_regression import (
-    get_example_basedir,
-    get_example_dirs,
-    get_home_dir,
-    get_select_dirs,
-    get_select_packages,
-    is_directory_available,
-    set_mf6_regression,
-)
-from simulation import Simulation
-from targets import get_mf6_version
-from targets import target_dict as target_dict
+try:
+    from modflow_devtools import (
+        get_example_basedir,
+        get_example_dirs,
+        get_home_dir,
+        get_select_dirs,
+        get_select_packages,
+        is_directory_available,
+        set_mf6_regression,
+        get_namefiles,
+        model_setup,
+        set_teardown_test,
+        Simulation,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 # find path to examples directory
 home = get_home_dir()
@@ -112,22 +110,17 @@ example_basedir = get_example_basedir(home, find_dir, subdir="mf5to6")
 if example_basedir is not None:
     assert os.path.isdir(example_basedir)
 
-# get a list of test models to run
-mf5to6_models = get_mf5to6_models()
-
 
 sfmt = "{:25s} - {}"
 
 
-def run_mf5to6(sim):
+def run_mf5to6(sim, testdir):
     """
     Run the MODFLOW 6 simulation and compare to existing head file or
     appropriate MODFLOW-2005, MODFLOW-NWT, MODFLOW-USG, or MODFLOW-LGR run.
 
     """
     src = os.path.join(example_basedir, sim.name)
-    dst = os.path.join("temp", f"z02_mf5to6_{sim.name}")
-    os.makedirs(dst, exist_ok=True)
 
     # set lgrpth to None
     lgrpth = None
@@ -146,19 +139,18 @@ def run_mf5to6(sim):
     # copy lgr files to working directory
     if lgrpth is not None:
         npth = lgrpth
-        pymake.setup(lgrpth, dst)
+        model_setup(lgrpth, testdir)
     # copy MODFLOW-2005, MODFLOW-NWT, or MODFLOW-USG files to working directory
     else:
-        npths = pymake.get_namefiles(src)
+        npths = get_namefiles(src)
         if len(npths) < 1:
             msg = f"No name files in {src}"
             print(msg)
             assert False
         npth = npths[0]
-        pymake.setup(npth, dst)
+        model_setup(npth, testdir)
 
     # run the mf5to6 converter
-    exe = os.path.abspath(target_dict["mf5to6"])
     print(sfmt.format("using executable", exe))
     nmsg = "Program terminated normally"
     try:
@@ -166,7 +158,7 @@ def run_mf5to6(sim):
         success, buff = flopy.run_model(
             exe,
             nam,
-            model_ws=dst,
+            model_ws=testdir,
             silent=False,
             report=True,
             normal_msg=nmsg,
@@ -185,16 +177,9 @@ def run_mf5to6(sim):
     assert success, msg
 
     # standard setup
-    src = dst
-    dst = os.path.join("temp", f"z02_mf6_{sim.name}")
+    src = testdir
+    dst = os.path.join(testdir, "compare")
     sim.setup(src, dst)
-
-    # clean up temp/working directory (src)
-    if os.path.exists(src):
-        msg = f"Removing {src} directory"
-        print(msg)
-        shutil.rmtree(src)
-        time.sleep(0.5)
 
     # standard comparison run
     sim.run()
@@ -202,7 +187,7 @@ def run_mf5to6(sim):
     sim.teardown()
 
 
-def set_make_comparison(test):
+def set_make_comparison(test, ctx):
     compare_tests = {
         "testPr2": ("6.2.1",),
         "testUzfLakSfr": ("6.2.1",),
@@ -211,67 +196,64 @@ def set_make_comparison(test):
     }
     make_comparison = True
     if test in compare_tests.keys():
-        version = get_mf6_version()
+        version = ctx.get_mf6_version()
         print(f"MODFLOW version='{version}'")
-        version = get_mf6_version(version="mf6-regression")
+        version = ctx.get_mf6_version(version="mf6-regression")
         print(f"MODFLOW regression version='{version}'")
         if version in compare_tests[test]:
             make_comparison = False
     return make_comparison
 
-
+@pytest.mark.gwt
+@pytest.mark.gwf
+@pytest.mark.slow
 @pytest.mark.parametrize(
-    "exdir",
-    mf5to6_models,
+    "test",
+    get_mf5to6_models(),
 )
-def test_model(exdir):
+def test_z02_testmodels_mf5to6(test, tmpdir, testbin, mf6testctx):
+    global exe
+    exe = mf6testctx.get_target_dictionary()["mf5to6"]
+
+    # run the test model
+    print(f"test={test}")
     run_mf5to6(
         Simulation(
-            exdir,
+            test,
+            testbin=testbin,
             mf6_regression=set_mf6_regression(),
             cmp_verbose=False,
-            make_comparison=set_make_comparison(exdir),
-        )
+            make_comparison=set_make_comparison(test, mf6testctx),
+        ),
+        str(tmpdir)
     )
-
-    return
 
 
 def main():
+    from conftest import mf6_testbin
+
     # write message
     tnam = os.path.splitext(os.path.basename(__file__))[0]
     msg = f"Running {tnam} test"
     print(msg)
 
-    # get name of current file
-    module_name = sys.modules[__name__].__file__
+    ctx = MFTestContext(testbin=mf6_testbin)
 
-    # # get a list of test models to run
-    # example_dirs = get_mf5to6_models()
-
-    # run the test model
-    for on_dir in mf5to6_models:
-        sim = Simulation(
-            on_dir,
-            mf6_regression=set_mf6_regression(),
-            cmp_verbose=False,
-            make_comparison=set_make_comparison(on_dir),
+    # run the test models
+    for test in get_mf5to6_models():
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test,
         )
-        run_mf5to6(sim)
-
-    return
+        test_z01_testmodels_mf6(test, simdir, mf6_testbin, ctx)
+        if set_teardown_test():
+            shutil.rmtree(simdir, ignore_errors=True)
 
 
 if __name__ == "__main__":
 
     print(f"standalone run of {os.path.basename(__file__)}")
-
-    delFiles = True
-    for idx, arg in enumerate(sys.argv):
-        if arg.lower() == "--keep":
-            if len(sys.argv) > idx + 1:
-                delFiles = False
-                break
 
     # run main routine
     main()

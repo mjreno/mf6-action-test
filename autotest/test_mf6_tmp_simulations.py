@@ -4,14 +4,6 @@ import sys
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,7 +11,14 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        set_teardown_test,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 exdir = os.path.join("..", "tmp_simulations")
 testpaths = os.path.join("..", exdir)
@@ -112,7 +111,7 @@ def get_mf6_models():
     return dirs
 
 
-def run_mf6(sim):
+def run_mf6(sim, testdir):
     """
     Run the MODFLOW 6 simulation and compare to existing head file or
     appropriate MODFLOW-2005, MODFLOW-NWT, MODFLOW-USG, or MODFLOW-LGR run.
@@ -120,49 +119,51 @@ def run_mf6(sim):
     """
     print(os.getcwd())
     src = os.path.join(exdir, sim.name)
-    dst = os.path.join("temp", sim.name)
-    sim.setup(src, dst)
+    sim.setup(src, testdir)
     sim.run()
     sim.compare()
     sim.teardown()
 
 
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(get_mf6_models())),
+    "test",
+    get_mf6_models(),
 )
-def test_mf6model(idx, dir):
+def test_mf6_tmp_simulations(test, tmpdir, testbin):
     # run the test model
-    run_mf6(Simulation(dir))
+    print(f"test={test}")
+    run_mf6(
+        Simulation(
+            test,
+            testbin=testbin,
+        ),
+        str(tmpdir)
+    )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # write message
     tnam = os.path.splitext(os.path.basename(__file__))[0]
     msg = f"Running {tnam} test"
     print(msg)
 
-    # get a list of test models to run
-    dirs = get_mf6_models()
-
-    # run the test model
-    for dir in dirs:
-        sim = Simulation(dir)
-        run_mf6(sim)
-
-    return
+    # run the test models
+    for test in get_mf6_models():
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test,
+        )
+        test_mf6_tmp_simulations(test, simdir, mf6_testbin)
+        if set_teardown_test():
+            shutil.rmtree(simdir, ignore_errors=True)
 
 
 if __name__ == "__main__":
 
     print(f"standalone run of {os.path.basename(__file__)}")
-
-    delFiles = True
-    for idx, arg in enumerate(sys.argv):
-        if arg.lower() == "--keep":
-            if len(sys.argv) > idx + 1:
-                delFiles = False
-                break
 
     # run main routine
     main()

@@ -9,14 +9,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -24,14 +16,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["gwf_uzf02a"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["gwf_uzf02a"]
 nlay, nrow, ncol = 1, 1, 1
 
 
@@ -66,7 +60,7 @@ def build_model(idx, dir):
     for id in range(nper):
         tdis_rc.append((perlen[id], nstp[id], tsmult[id]))
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -248,8 +242,8 @@ def build_model(idx, dir):
 def make_plot(sim, obsvals):
     print("making plots...")
 
-    name = ex[sim.idxsim]
-    ws = exdirs[sim.idxsim]
+    name = runs[sim.idxsim]
+    ws = sim.simpath
 
     # shows curves for times 2.5, 7.5, 12.6, 17.7
     # which are indices 24, 74, 125, and -1
@@ -285,8 +279,8 @@ def make_plot(sim, obsvals):
 def eval_flow(sim):
     print("evaluating flow...")
 
-    name = ex[sim.idxsim]
-    ws = exdirs[sim.idxsim]
+    name = runs[sim.idxsim]
+    ws = sim.simpath
 
     # check binary grid file
     fname = os.path.join(ws, name + ".dis.grb")
@@ -334,29 +328,48 @@ def eval_flow(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.uzf
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_uzf02(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_flow, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_flow,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_flow, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_flow,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
 
     return

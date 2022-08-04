@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,13 +11,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["csub_sk01a", "csub_sk01b", "csub_sk01c"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["csub_sk01a", "csub_sk01b", "csub_sk01c"]
 cvopt = [None, None, None]
 constantcv = [True, True, True]
 ndelaybeds = [0, 0, 0]
@@ -34,10 +30,8 @@ cmppths = ["mf6-regression", "mf6-regression", "mf6-regression"]
 tops = [0.0, 0.0, 150.0]
 newtons = [False, True, True]
 
-ddir = "data"
-
 ## run all examples on Travis
-# continuous_integration = [False for idx in range(len(exdirs))]
+# continuous_integration = [False for idx in range(len(runs))]
 continuous_integration = [True, True, True]
 
 # set replace_exe to None to use default executable
@@ -156,7 +150,7 @@ ds16 = [0, nper - 1, 0, nstp[-1] - 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 
 # Build MODFLOW 6 files
 def get_model(idx, ws):
-    name = ex[idx]
+    name = runs[idx]
     newton = newtons[idx]
     newtonoptions = None
     imsla = "CG"
@@ -382,7 +376,7 @@ def eval_comp(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.comp.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.comp.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -402,7 +396,7 @@ def eval_comp(sim):
         print("    " + msg)
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -414,7 +408,7 @@ def eval_comp(sim):
     d = np.recarray(nbud, dtype=dtype)
     for key in bud_lst:
         d[key] = 0.0
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
     kk = cobj.get_kstpkper()
     times = cobj.get_times()
@@ -447,7 +441,7 @@ def eval_comp(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.bud.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -478,13 +472,13 @@ def eval_comp(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_sk01(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -496,13 +490,14 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     test.run_mf6(
         Simulation(
-            dir,
+            str(tmpdir),
             exfunc=eval_comp,
+            testbin=testbin,
             htol=htol[idx],
             idxsim=idx,
             mf6_regression=True,
@@ -511,15 +506,23 @@ def test_mf6model(idx, dir):
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir,
+            simdir,
             exfunc=eval_comp,
+            testbin=mf6_testbin,
             htol=htol[idx],
             idxsim=idx,
             mf6_regression=True,

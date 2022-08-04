@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,27 +11,30 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "csub"
 budtol = 1e-2
 
-ex = ["csub_sub01a", "csub_sub01b"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["csub_sub01a", "csub_sub01b"]
 
 compression_indices = [None, True]
 
-ndcell = [19] * len(ex)
+ndcell = [19] * len(runs)
 
 # run all examples on Travis
-# continuous_integration = [True for idx in range(len(exdirs))]
+# continuous_integration = [True for idx in range(len(runs))]
 # the delay bed problems only run on the development version of MODFLOW-2005
 # set travis to True when version 1.13.0 is released
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -110,7 +105,7 @@ ds16 = [0, 0, 0, 100, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 
 
 def get_model(idx, ws):
-    name = ex[idx]
+    name = runs[idx]
 
     sim = flopy.mf6.MFSimulation(
         sim_name=name, version="mf6", exe_name="mf6", sim_ws=ws
@@ -285,7 +280,7 @@ def eval_sub(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.comp.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.comp.cmp.out"
     )
     f = open(fpth, "w")
     line = f"{'TOTIM':>15s}"
@@ -318,7 +313,7 @@ def eval_sub(sim):
 # compare cbc and lst budgets
 def cbc_compare(sim):
     # open cbc file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
 
     # build list of cbc data to retrieve
@@ -335,7 +330,7 @@ def cbc_compare(sim):
             bud_lst.append(f"{t}_OUT")
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -382,7 +377,7 @@ def cbc_compare(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.bud.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -413,21 +408,24 @@ def cbc_compare(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_csub_sub01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     test.run_mf6(
         Simulation(
-            exdir,
+            str(tmpdir),
             exfunc=eval_sub,
+            testbin=testbin,
             idxsim=idx,
             mf6_regression=True,
         )
@@ -435,15 +433,23 @@ def test_mf6model(idx, exdir):
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            exdir,
+            simdir,
             exfunc=eval_sub,
+            testbin=mf6_testbin,
             idxsim=idx,
             mf6_regression=True,
         )

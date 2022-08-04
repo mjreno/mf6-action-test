@@ -36,13 +36,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["ifmod_mult_exg"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["ifmod_mult_exg"]
 
 name_parent = "parent"
 name_child = "child"
@@ -54,7 +57,7 @@ g_hclose = 10e-12
 
 
 def get_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # parameters and spd
     # tdis
@@ -275,7 +278,7 @@ def build_model(idx, exdir):
 
 
 def eval_heads(sim):
-    name = ex[sim.idxsim]
+    name = runs[sim.idxsim]
 
     fpth = os.path.join(sim.simpath, f"{name_parent}.hds")
     hds = flopy.utils.HeadFile(fpth)
@@ -348,30 +351,50 @@ def eval_heads(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.ifmod
+@pytest.mark.buy
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_ifmod_mult_exg(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(exdir, exfunc=eval_heads, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_heads,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
-        sim = Simulation(exdir, exfunc=eval_heads, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_heads,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

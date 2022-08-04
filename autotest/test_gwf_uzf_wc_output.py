@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,15 +11,20 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import flopy.utils.binaryfile as bf
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+import flopy.utils.binaryfile as bf
 
 include_NWT = False
 
-ex = ["uzf_3lay_wc_chk"]
-exdirs = [os.path.join("temp", name) for name in ex]
+runs = ["uzf_3lay_wc_chk"]
 
 iuz_cell_dict = {}
 cell_iuz_dict = {}
@@ -246,7 +243,7 @@ def build_mf6_model(idx, ws):
     for i in range(nper):
         tdis_rc.append((perlen[i], nstp[i], tsmult[i]))
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
@@ -362,7 +359,7 @@ def build_mf6_model(idx, ws):
 
 def build_mfnwt_model(idx, ws):
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW-NWT files
     ws = os.path.join(ws, "mfnwt")
@@ -471,8 +468,8 @@ def eval_model(sim):
     print("evaluating model...")
 
     idx = sim.idxsim
-    name = ex[idx]
-    ws = os.path.join("temp", name)
+    name = runs[idx]
+    ws = sim.simpath
 
     # Get the MF6 heads
     fpth = os.path.join(ws, "uzf_3lay_wc_chk.hds")
@@ -480,7 +477,7 @@ def eval_model(sim):
     hds = hobj.get_alldata()
 
     # Get the MF6 water contents
-    wcpth = os.path.join(ws, ex[0] + ".uzfwc.bin")
+    wcpth = os.path.join(ws, runs[sim.idxsim] + ".uzfwc.bin")
     mf6_wc_obj = bf.HeadFile(wcpth, text="   water-content")
 
     ckstpkper_wc = mf6_wc_obj.get_kstpkper()
@@ -561,22 +558,25 @@ def eval_model(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.uzf
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_uzf_wc_output(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test models
     test.run_mf6(
         Simulation(
-            exdir,
+            str(tmpdir),
             exfunc=eval_model,
+            testbin=testbin,
             idxsim=idx,
         )
     )
@@ -584,8 +584,15 @@ def test_mf6model(idx, exdir):
 
 
 def main():
-    for idx, exdir in enumerate(exdirs):
-        test_mf6model(idx, exdir)
+    from conftest import mf6_testbin
+
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test_gwf_uzf_wc_output(idx, run, simdir, mf6_testbin)
 
     return
 

@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,13 +11,17 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["csub_sub03a", "csub_sub03b"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["csub_sub03a", "csub_sub03b"]
 cmppth = "mf6-regression"
 
 
@@ -37,7 +33,7 @@ ndelaycells = [None, 39]
 ddir = "data"
 
 ## run all examples on Travis
-continuous_integration = [True for e in ex]
+continuous_integration = [True for r in runs]
 
 # set replace_exe to None to use default executable
 replace_exe = None
@@ -168,7 +164,7 @@ for k in ldnd:
 
 # SUB package problem 3
 def get_model(idx, ws):
-    name = ex[idx]
+    name = runs[idx]
     # ibc packagedata container counter
     sub6 = []
     ibcno = 0
@@ -413,7 +409,7 @@ def eval_comp(sim):
         print("    " + msg)
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -425,7 +421,7 @@ def eval_comp(sim):
     d = np.recarray(nbud, dtype=dtype)
     for key in bud_lst:
         d[key] = 0.0
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
     kk = cobj.get_kstpkper()
     times = cobj.get_times()
@@ -465,13 +461,13 @@ def eval_comp(sim):
 
 
 # - No need to change any code below
-
-
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_sub03(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
 
@@ -479,15 +475,17 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
     test.run_mf6(
         Simulation(
-            dir,
+            str(tmpdir),
             exfunc=eval_comp,
+            testbin=testbin,
+            idxsim=idx,
             htol=htol[idx],
             mf6_regression=True,
         )
@@ -495,16 +493,25 @@ def test_mf6model(idx, dir):
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            dir,
+            simdir,
             exfunc=eval_comp,
+            testbin=mf6_testbin,
+            idxsim=idx,
             mf6_regression=True,
             htol=htol[idx],
         )

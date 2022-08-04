@@ -10,14 +10,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -25,18 +17,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
+try:
+    from modflow_devtools import (
+        set_teardown_test,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-import targets
-
-exe_name_mf6 = targets.target_dict["mf6"]
-exe_name_mf6 = os.path.abspath(exe_name_mf6)
-
-testdir = "./temp"
 testgroup = "ssm01"
-d = os.path.join(testdir, testgroup)
-if os.path.isdir(d):
-    shutil.rmtree(d)
-
 nlay = 1
 nrow = 10
 ncol = 10
@@ -46,7 +36,7 @@ top = 100.0
 botm = 0.0
 
 
-def run_flow_model():
+def run_flow_model(testdir):
     global idomain
     name = "flow"
     gwfname = name
@@ -197,7 +187,7 @@ def run_flow_model():
     return
 
 
-def run_transport_model():
+def run_transport_model(testdir):
     name = "transport"
     gwtname = name
     wst = os.path.join(testdir, testgroup, name)
@@ -341,18 +331,30 @@ def run_transport_model():
     return
 
 
-def test_ssm01fmi():
-    run_flow_model()
-    run_transport_model()
-    d = os.path.join(testdir, testgroup)
-    if os.path.isdir(d):
-        shutil.rmtree(d)
-    return
+@pytest.mark.gwt
+@pytest.mark.ssm
+@pytest.mark.fmi
+def test_gwt_ssm01fmi(tmpdir, mf6testctx):
+    global exe_name_mf6
+    exe_name_mf6 = mf6testctx.get_target_dictionary()["mf6"]
+
+    run_flow_model(str(tmpdir))
+    run_transport_model(str(tmpdir))
 
 
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
-    # run tests
-    test_ssm01fmi()
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    testdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
+    )
+    os.makedirs(testdir, exist_ok=True)
+    test_gwt_ssm01fmi(testdir, ctx)
+    if set_teardown_test():
+        shutil.rmtree(testdir, ignore_errors=True)

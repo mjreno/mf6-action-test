@@ -3,16 +3,9 @@
 
 import os
 import shutil
+import pytest
 
 import numpy as np
-
-try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
 
 try:
     import flopy
@@ -22,19 +15,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
+try:
+    from modflow_devtools import (
+        set_teardown_test,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-import targets
-
-exe_name_mf6 = targets.target_dict["mf6"]
-exe_name_mf6 = os.path.abspath(exe_name_mf6)
-
-testdir = "./temp"
 testgroup = "ssm06"
-d = os.path.join(testdir, testgroup)
-if os.path.isdir(d):
-    shutil.rmtree(d)
-
-
 nlay = 1
 nrow = 10
 ncol = 10
@@ -66,7 +56,7 @@ ustrf = 1.0
 ndv = 0
 
 
-def run_flw_and_trnprt_models():
+def run_flw_and_trnprt_models(testdir):
     global idomain
     gwfname = "gwf-" + testgroup
     ws = os.path.join(testdir, testgroup)
@@ -377,17 +367,28 @@ def run_flw_and_trnprt_models():
     return
 
 
-def test_ssm06():
-    run_flw_and_trnprt_models()
-    d = os.path.join(testdir, testgroup)
-    if os.path.isdir(d):
-        shutil.rmtree(d)
-    return
+@pytest.mark.gwt
+@pytest.mark.ssm
+def test_gwt_ssm06(tmpdir, mf6testctx):
+    global exe_name_mf6
+    exe_name_mf6 = mf6testctx.get_target_dictionary()["mf6"]
+
+    run_flw_and_trnprt_models(str(tmpdir))
 
 
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
-    # run tests
-    test_ssm06()
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    testdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
+    )
+    os.makedirs(testdir, exist_ok=True)
+    test_gwt_ssm06(testdir, ctx)
+    if set_teardown_test():
+        shutil.rmtree(testdir, ignore_errors=True)

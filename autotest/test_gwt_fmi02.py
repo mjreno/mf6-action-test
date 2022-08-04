@@ -1,18 +1,11 @@
 # tests to ability to run flow model first followed by transport model
 
 import os
+import sys
 import shutil
 
 import numpy as np
 import pytest
-
-try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
 
 try:
     import flopy
@@ -22,23 +15,20 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
+try:
+    from modflow_devtools import MFTestContext
+    from modflow_devtools import set_teardown_test
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-import targets
-
-exe_name_mf6 = targets.target_dict["mf6"]
-exe_name_mf6 = os.path.abspath(exe_name_mf6)
-testdir = "./temp"
 testgroup = "fmi02"
-d = os.path.join(testdir, testgroup)
-if os.path.isdir(d):
-    shutil.rmtree(d)
 
-
-def run_flow_model():
+def run_flow_model(testdir):
     name = "flow"
     ws = os.path.join(testdir, testgroup, name)
     sim = flopy.mf6.MFSimulation(
-        sim_name=name, sim_ws=ws, exe_name=exe_name_mf6
+        sim_name=name, sim_ws=ws, exe_name=mf6_exe
     )
     pd = [(1.0, 1, 1.0), (1.0, 1, 1.0)]
     tdis = flopy.mf6.ModflowTdis(sim, nper=len(pd), perioddata=pd)
@@ -73,11 +63,11 @@ def run_flow_model():
     return
 
 
-def run_transport_model():
+def run_transport_model(testdir):
     name = "transport"
     ws = os.path.join(testdir, testgroup, name)
     sim = flopy.mf6.MFSimulation(
-        sim_name=name, sim_ws=ws, exe_name=exe_name_mf6
+        sim_name=name, sim_ws=ws, exe_name=mf6_exe
     )
     pd = [(1.0, 10, 1.0), (1.0, 10, 1.0)]
     tdis = flopy.mf6.ModflowTdis(sim, nper=len(pd), perioddata=pd)
@@ -109,18 +99,29 @@ def run_transport_model():
     return
 
 
-def test_fmi():
-    run_flow_model()
-    run_transport_model()
-    d = os.path.join(testdir, testgroup)
-    if os.path.isdir(d):
-        shutil.rmtree(d)
-    return
+@pytest.mark.gwt
+@pytest.mark.fmi
+def test_gwt_fmi02(tmpdir, mf6testctx):
+    global mf6_exe
+    mf6_exe = mf6testctx.get_target_dictionary()["mf6"]
+    run_flow_model(str(tmpdir))
+    run_transport_model(str(tmpdir))
 
 
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    simdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
+    )
+
     # run tests
-    test_fmi()
+    test_gwt_fmi02(simdir, ctx)
+    if set_teardown_test():
+        shutil.rmtree(simdir, ignore_errors=True)

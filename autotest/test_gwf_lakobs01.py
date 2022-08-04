@@ -20,14 +20,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        set_teardown_test,
+        MFTestContext,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
-
-ex = "gwf_lakobs_01a"
-exdir = os.path.join("temp", ex)
+run = "gwf_lakobs_01a"
 
 
 # store global gwf for subsequent plotting
@@ -42,7 +44,7 @@ def get_idomain(nlay, nrow, ncol, lakend):
     return idomain
 
 
-def build_model():
+def build_model(testdir, mf6_exe):
     lx = 300.0
     lz = 45.0
     nlay = 45
@@ -69,14 +71,14 @@ def build_model():
     nouter, ninner = 700, 300
     hclose, rclose, relax = 1e-8, 1e-6, 0.97
 
-    name = ex
+    name = run
 
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
         sim_name=name,
         version="mf6",
         exe_name=mf6_exe,
-        sim_ws=exdir,
+        sim_ws=testdir,
     )
 
     # create tdis package
@@ -221,12 +223,9 @@ def build_model():
 
 
 # - No need to change any code below
-def test_mf6model():
-    # initialize testing framework
-    test = testing_framework()
-
+def test_gwf_lakobs01(tmpdir, mf6testctx):
     # build the models
-    sim = build_model()
+    sim = build_model(str(tmpdir), mf6testctx.get_target_dictionary()["mf6"])
 
     # write model input
     sim.write_simulation()
@@ -235,7 +234,7 @@ def test_mf6model():
     sim.run_simulation()
 
     # ensure that the error msg is contained in the mfsim.lst file
-    f = open(os.path.join(exdir, "mfsim.lst"), "r")
+    f = open(os.path.join(str(tmpdir), "mfsim.lst"), "r")
     lines = f.readlines()
     error_count = 0
     expected_msg = False
@@ -249,8 +248,8 @@ def test_mf6model():
     )
 
     # fix the error and attempt to rerun model
-    orig_fl = os.path.join(exdir, ex + ".lak.obs")
-    new_fl = os.path.join(exdir, ex + ".lak.obs.new")
+    orig_fl = os.path.join(str(tmpdir), run + ".lak.obs")
+    new_fl = os.path.join(tmpdir, run + ".lak.obs.new")
     sr = open(orig_fl, "r")
     sw = open(new_fl, "w")
 
@@ -271,67 +270,22 @@ def test_mf6model():
 
     # rerun the model, should be no errors
     sim.run_simulation()
-
-    shutil.rmtree(exdir, ignore_errors=True)
-
-    return
 
 
 def main():
-    # initialize testing framework
-    test = testing_framework()
+    from conftest import mf6_testbin
 
-    # build the models
-    sim = build_model()
+    # set test context
+    ctx = MFTestContext(testbin=mf6_testbin)
 
-    # write model input
-    sim.write_simulation()
-
-    # attempt to run model, should fail
-    sim.run_simulation()
-
-    # ensure that the error msg is contained in the mfsim.lst file
-    f = open(os.path.join(exdir, "mfsim.lst"), "r")
-    lines = f.readlines()
-    error_count = 0
-    expected_msg = False
-    for line in lines:
-        if "ID2 (iconn) is missing" in line:
-            expected_msg = True
-            error_count += 1
-
-    assert error_count == 1, (
-        "error count = " + str(error_count) + ", but should equal 1"
+    simdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
     )
 
-    # fix the error and attempt to rerun model
-    orig_fl = os.path.join(exdir, ex + ".lak.obs")
-    new_fl = os.path.join(exdir, ex + ".lak.obs.new")
-    sr = open(orig_fl, "r")
-    sw = open(new_fl, "w")
-
-    lines = sr.readlines()
-    error_free_line = "  lak1  lak  1  1\n"
-    for line in lines:
-        if " lak " in line:
-            sw.write(error_free_line)
-        else:
-            sw.write(line)
-
-    sr.close()
-    sw.close()
-
-    # delete original and replace with corrected lab obs input
-    os.remove(orig_fl)
-    os.rename(new_fl, orig_fl)
-
-    # rerun the model, should be no errors
-    sim.run_simulation()
-
-    # clean the working directory
-    shutil.rmtree(exdir, ignore_errors=True)
-
-    return
+    test_gwf_lakobs01(simdir, ctx)
+    if set_teardown_test():
+        shutil.rmtree(simdir, ignore_errors=True)
 
 
 if __name__ == "__main__":

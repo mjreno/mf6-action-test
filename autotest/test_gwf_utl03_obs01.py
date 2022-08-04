@@ -12,14 +12,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["utl03_obs"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
+runs = ["utl03_obs"]
 
 # temporal discretization
 nper = 2
@@ -62,7 +64,7 @@ hclose, rclose, relax = 1e-6, 0.01, 1.0
 
 
 def build_mf6(idx, ws, binaryobs=True):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
@@ -162,16 +164,15 @@ def build_model(idx, dir):
     return sim, mc
 
 
-def build_models():
-    for idx, dir in enumerate(exdirs):
-        sim, mc = build_model(idx, dir)
-        sim.write_simulation()
-        mc.write_simulation()
-        hack_binary_obs(idx, dir)
+def build_models(idx, testdir):
+    sim, mc = build_model(idx, testdir)
+    sim.write_simulation()
+    mc.write_simulation()
+    hack_binary_obs(idx, testdir)
 
 
 def hack_binary_obs(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
     ws = dir
     wsc = os.path.join(ws, "mf6")
     fname = name + ".obs"
@@ -228,31 +229,49 @@ def eval_obs(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.obs
+@pytest.mark.util
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_utl03_obs01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the models
-    build_models()
+    build_models(idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_obs))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_obs,
+        testbin=testbin
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
-    # build the models
-    build_models()
-
     # run the test model
-    for dir in exdirs:
-        sim = Simulation(dir, exfunc=eval_obs)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+
+        build_models(idx, simdir)
+
+        sim = Simulation(
+            simdir,
+            exfunc=eval_obs,
+            testbin=mf6_testbin
+        )
         test.run_mf6(sim)
 
 

@@ -7,14 +7,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -22,19 +14,19 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
+try:
+    from modflow_devtools import MFTestContext
+    from modflow_devtools import set_teardown_test
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
 testname = "uzf_3lay_srfdchk"
-testdir = os.path.join("temp", testname)
-os.makedirs(testdir, exist_ok=True)
-everything_was_successful = True
-
 iuz_cell_dict = {}
 cell_iuz_dict = {}
 
 
-def build_model():
+def build_model(testdir):
 
     nlay, nrow, ncol = 3, 1, 10
     nper = 1
@@ -214,14 +206,19 @@ def build_model():
 
 
 # - No need to change any code below
-def test_mf6model():
+@pytest.mark.gwf
+@pytest.mark.uzf
+def test_gwf_uzf_surfdep(tmpdir, mf6testctx):
+    global mf6_exe
+    mf6_exe = mf6testctx.get_target_dictionary()["mf6"]
+
     # build and run the test model
-    sim = build_model()
+    sim = build_model(str(tmpdir))
     sim.write_simulation()
     sim.run_simulation()
 
     # ensure that the error msg is contained in the mfsim.lst file
-    f = open(os.path.join(testdir, "mfsim.lst"), "r")
+    f = open(os.path.join(str(tmpdir), "mfsim.lst"), "r")
     lines = f.readlines()
     error_count = 0
     expected_msg = False
@@ -236,13 +233,22 @@ def test_mf6model():
 
     print("Finished running surfdep check")
 
-    shutil.rmtree(testdir, ignore_errors=True)
-
     return
 
 
 def main():
-    test_mf6model()
+    from conftest import mf6_testbin
+
+    simdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
+        testname,
+    )
+
+    ctx = MFTestContext(testbin=mf6_testbin)
+    test_gwf_uzf_surfdep(simdir, ctx)
+    if set_teardown_test():
+        shutil.rmtree(simdir, ignore_errors=True)
 
     return
 

@@ -5,14 +5,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -20,17 +12,19 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from binary_file_writer import write_budget, write_head
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        write_budget,
+        write_head,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["dsp01a_fmi", "dsp01b_fmi"]
+runs = ["dsp01a_fmi", "dsp01b_fmi"]
 xt3d = [False, True]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
-
 
 def build_model(idx, dir):
     nlay, nrow, ncol = 1, 1, 100
@@ -60,7 +54,7 @@ def build_model(idx, dir):
     for i in range(nper):
         tdis_rc.append((perlen[i], nstp[i], tsmult[i]))
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -215,7 +209,7 @@ def build_model(idx, dir):
 def eval_transport(sim):
     print("evaluating transport...")
 
-    name = ex[sim.idxsim]
+    name = runs[sim.idxsim]
     gwtname = "gwt_" + name
 
     fpth = os.path.join(sim.simpath, f"{gwtname}.ucn")
@@ -344,33 +338,51 @@ def eval_transport(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwt
+@pytest.mark.dsp
+@pytest.mark.fmi
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwt_dsp01_fmi(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_transport, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_transport,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_transport, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_transport,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
-
-    return
 
 
 if __name__ == "__main__":

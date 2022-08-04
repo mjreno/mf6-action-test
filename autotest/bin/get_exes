@@ -1,0 +1,4 @@
+#! /bin/bash
+
+python "t.py"
+exit 0

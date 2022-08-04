@@ -15,15 +15,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["binary01", "binary02"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
-
+runs = ["binary01", "binary02"]
 
 def build_model(idx, dir):
 
@@ -47,7 +48,7 @@ def build_model(idx, dir):
     for i in range(nper):
         tdis_rc.append((perlen, nstp, tsmult))
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -88,7 +89,7 @@ def build_model(idx, dir):
     # write top to a binary file
     text = "TOP"
     fname = "top.bin"
-    pth = os.path.join(exdirs[idx], fname)
+    pth = os.path.join(ws, fname)
     f = open(pth, "wb")
     header = flopy.utils.BinaryHeader.create(
         bintype="HEAD",
@@ -123,7 +124,7 @@ def build_model(idx, dir):
         for k in range(nlay):
             text = f"BOTM_L{k + 1}"
             fname = f"botm.l{k + 1:02d}.bin"
-            pth = os.path.join(exdirs[idx], fname)
+            pth = os.path.join(ws, fname)
             f = open(pth, "wb")
             header = flopy.utils.BinaryHeader.create(
                 bintype="HEAD",
@@ -155,7 +156,7 @@ def build_model(idx, dir):
             )
     elif idx == 1:
         fname = "botm.bin"
-        pth = os.path.join(exdirs[idx], fname)
+        pth = os.path.join(ws, fname)
         f = open(pth, "wb")
         tarr = np.ones((nlay, nrow, ncol), dtype=np.float64)
         for k in range(nlay):
@@ -189,7 +190,7 @@ def build_model(idx, dir):
         for k in range(nlay):
             text = f"IDOMAIN_L{k + 1}"
             fname = f"idomain.l{k + 1:02d}.bin"
-            pth = os.path.join(exdirs[idx], fname)
+            pth = os.path.join(ws, fname)
             f = open(pth, "wb")
             header = flopy.utils.BinaryHeader.create(
                 bintype="HEAD",
@@ -221,7 +222,7 @@ def build_model(idx, dir):
             )
     elif idx == 1:
         fname = "idomain.bin"
-        pth = os.path.join(exdirs[idx], fname)
+        pth = os.path.join(ws, fname)
         f = open(pth, "wb")
         header = flopy.utils.BinaryHeader.create(
             bintype="HEAD",
@@ -270,7 +271,7 @@ def build_model(idx, dir):
         for k in range(nlay):
             text = f"IC_L{k + 1}"
             fname = f"ic.strt_l{k + 1:02d}.bin"
-            pth = os.path.join(exdirs[idx], fname)
+            pth = os.path.join(ws, fname)
             f = open(pth, "wb")
             header = flopy.utils.BinaryHeader.create(
                 bintype="HEAD",
@@ -302,7 +303,7 @@ def build_model(idx, dir):
             )
     elif idx == 1:
         fname = "ic.strt.bin"
-        pth = os.path.join(exdirs[idx], fname)
+        pth = os.path.join(ws, fname)
         f = open(pth, "wb")
         header = flopy.utils.BinaryHeader.create(
             bintype="HEAD",
@@ -339,7 +340,7 @@ def build_model(idx, dir):
         icelltype = []
         for k in range(nlay):
             fname = f"npf.icelltype.l{k + 1}.bin"
-            pth = os.path.join(exdirs[idx], fname)
+            pth = os.path.join(ws, fname)
             f = open(pth, "wb")
             header = flopy.utils.BinaryHeader.create(
                 bintype="head",
@@ -372,7 +373,7 @@ def build_model(idx, dir):
             )
     elif idx == 1:
         fname = "npf.icelltype.bin"
-        pth = os.path.join(exdirs[idx], fname)
+        pth = os.path.join(ws, fname)
         f = open(pth, "wb")
         header = flopy.utils.BinaryHeader.create(
             bintype="head",
@@ -440,30 +441,45 @@ def build_model(idx, dir):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.util
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_utl01_binaryinput(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        testbin=testbin
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            testbin=mf6_testbin
+        )
         test.run_mf6(sim)
 
     return

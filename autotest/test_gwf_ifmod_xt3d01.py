@@ -13,8 +13,14 @@ except:
 
 from flopy.utils.lgrutil import Lgr
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 # Test for the interface model approach, when running
 # with a GWF-GWF exchange and XT3D applied on it.
@@ -40,10 +46,7 @@ from simulation import Simulation
 # at the LGR interface. We compare heads, specific discharge, and
 # confirm that there is no budget error.
 
-ex = ["ifmod_xt3d01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["ifmod_xt3d01"]
 
 # globally for convenience...
 useXT3D = True
@@ -63,7 +66,7 @@ def get_model(idx, dir):
     global child_domain
     global hclose
 
-    name = ex[idx]
+    name = runs[idx]
 
     # tdis period data
     nper = 1
@@ -314,7 +317,7 @@ def qxqyqz(fname, nlay, nrow, ncol):
 def eval_heads(sim):
     print("comparing heads and spec. discharges to analytical result...")
 
-    name = ex[sim.idxsim]
+    name = runs[sim.idxsim]
 
     fpth = os.path.join(sim.simpath, f"{parent_name}.hds")
     hds = flopy.utils.HeadFile(fpth)
@@ -491,30 +494,51 @@ def eval_heads(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.ifmod
+@pytest.mark.exg
+@pytest.mark.npf
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_ifmod_xt3d01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(exdir, exfunc=eval_heads, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_heads,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
-        sim = Simulation(exdir, exfunc=eval_heads, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_heads,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
     return
 

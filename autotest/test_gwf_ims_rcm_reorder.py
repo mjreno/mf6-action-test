@@ -2,8 +2,6 @@ import os
 
 import pytest
 
-from budget_file_compare import eval_bud_diff
-
 try:
     import flopy
 except:
@@ -12,15 +10,21 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        eval_bud_diff,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "ims"
 
-ex = [
+runs = [
     "ims_rcm",
 ]
-exdirs = [os.path.join("temp", s) for s in ex]
 
 # spatial discretization data
 nlay, nrow, ncol = 2, 5, 30
@@ -40,7 +44,7 @@ def build_model(idx, ws):
     tdis_rc = [(1.0, 1, 1.0)]
 
     # build MODFLOW 6 files
-    name = ex[idx]
+    name = runs[idx]
     sim = flopy.mf6.MFSimulation(
         sim_name=name,
         version="mf6",
@@ -136,19 +140,19 @@ def build_models(idx, base_ws):
 
 def eval_flows(sim):
     idx = sim.idxsim
-    name = ex[idx]
+    name = runs[idx]
     print("evaluating flow results..." f"({name})")
 
-    fpth = os.path.join(exdirs[idx], f"{name}.dis.grb")
+    fpth = os.path.join(sim.simpath, f"{name}.dis.grb")
     ia = flopy.mf6.utils.MfGrdFile(fpth).ia
 
-    fpth = os.path.join(exdirs[idx], f"{name}.cbc")
+    fpth = os.path.join(sim.simpath, f"{name}.cbc")
     b0 = flopy.utils.CellBudgetFile(fpth, precision="double")
 
-    fpth = os.path.join(exdirs[idx], "mf6", f"{name}.cbc")
+    fpth = os.path.join(sim.simpath, "mf6", f"{name}.cbc")
     b1 = flopy.utils.CellBudgetFile(fpth, precision="double")
 
-    fpth = os.path.join(exdirs[idx], f"{name}.cbc.cmp.out")
+    fpth = os.path.join(sim.simpath, f"{name}.cbc.cmp.out")
     eval_bud_diff(fpth, b0, b1, ia=ia)
 
     # close the budget files
@@ -157,38 +161,48 @@ def eval_flows(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.ims
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_ims_rcm_reorder(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_models, idx, exdir)
+    test.build_mf6_models(build_models, idx, str(tmpdir))
 
     # run the test models
     test.run_mf6(
         Simulation(
-            exdir,
+            str(tmpdir),
             exfunc=eval_flows,
+            testbin=testbin,
             idxsim=idx,
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_models, idx, exdir)
-
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_models, idx, simdir)
         sim = Simulation(
-            exdir,
+            simdir,
             exfunc=eval_flows,
+            testbin=mf6_testbin,
             idxsim=idx,
         )
         test.run_mf6(sim)

@@ -12,32 +12,26 @@ except:
     raise Exception(msg)
 
 try:
-    import pymake
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+        compare_heads,
+    )
 except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
+    msg = "modflow-devtools not in PYTHONPATH"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
-
-ex = ["csub_zdisp01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-
+runs = ["csub_zdisp01"]
 cmppth = "mfnwt"
 
-ddir = "data"
-
 ## run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
 
-htol = [None for idx in range(len(exdirs))]
+htol = [None for idx in range(len(runs))]
 dtol = 1e-3
 budtol = 1e-2
 
@@ -222,7 +216,7 @@ ds16 = [0, nper - 1, 0, nstp[-1] - 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1]
 
 # variant SUB package problem 3
 def get_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -424,14 +418,6 @@ def get_model(idx, dir):
     return sim, mc
 
 
-def build_models():
-    for idx, dir in enumerate(exdirs):
-        sim, mc = get_model(idx, dir)
-        sim.write_simulation()
-        mc.write_input()
-    return
-
-
 def eval_zdisplacement(sim):
     print("evaluating z-displacement...")
 
@@ -443,7 +429,7 @@ def eval_zdisplacement(sim):
         assert False, f'could not load data from "{fpth}"'
 
     # MODFLOW-2005 total compaction results
-    fn = f"{os.path.basename(sim.name)}.total_comp.hds"
+    fn = f"{runs[sim.idxsim]}.total_comp.hds"
     fpth = os.path.join(sim.simpath, "mfnwt", fn)
     try:
         sobj = flopy.utils.HeadFile(fpth, text="LAYER COMPACTION")
@@ -465,7 +451,7 @@ def eval_zdisplacement(sim):
         print("    " + msg)
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.lst")
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -484,7 +470,7 @@ def eval_zdisplacement(sim):
     d = np.recarray(nbud, dtype=dtype)
     for key in bud_lst:
         d[key] = 0.0
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runs[sim.idxsim]}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
     kk = cobj.get_kstpkper()
     times = cobj.get_times()
@@ -522,7 +508,7 @@ def eval_zdisplacement(sim):
 
     # write summary
     fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
+        sim.simpath, f"{runs[sim.idxsim]}.bud.cmp.out"
     )
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
@@ -552,16 +538,16 @@ def eval_zdisplacement(sim):
     # compare z-displacement data
     fpth1 = os.path.join(
         sim.simpath,
-        f"{os.path.basename(sim.name)}.zdisplacement.gridbin",
+        f"{runs[sim.idxsim]}.zdisplacement.gridbin",
     )
     fpth2 = os.path.join(sim.simpath, cmppth, "csub_zdisp01.vert_disp.hds")
     text1 = "CSUB-ZDISPLACE"
     text2 = "Z DISPLACEMENT"
     fout = os.path.join(
         sim.simpath,
-        f"{os.path.basename(sim.name)}.z-displacement.bin.out",
+        f"{runs[sim.idxsim]}.z-displacement.bin.out",
     )
-    success_tst = pymake.compare_heads(
+    success_tst = compare_heads(
         None,
         None,
         text=text1,
@@ -585,11 +571,13 @@ def eval_zdisplacement(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.csub
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_csub_zdisp01(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
     r_exe = None
@@ -601,16 +589,19 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    build_models()
+    sim, mc = get_model(idx, str(tmpdir))
+    sim.write_simulation()
+    mc.write_input()
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
     test.run_mf6(
         Simulation(
-            dir,
+            str(tmpdir),
             exfunc=eval_zdisplacement,
             exe_dict=r_exe,
+            testbin=testbin,
             htol=htol[idx],
             idxsim=idx,
         )
@@ -618,18 +609,26 @@ def test_mf6model(idx, dir):
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
-    # build the models
-    build_models()
-
     # run the test model
-    for idx, dir in enumerate(exdirs):
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        sim, mc = get_model(idx, simdir)
+        sim.write_simulation()
+        mc.write_input()
         sim = Simulation(
-            dir,
+            simdir,
             exfunc=eval_zdisplacement,
             exe_dict=replace_exe,
+            testbin=mf6_testbin,
             htol=htol[idx],
             idxsim=idx,
         )

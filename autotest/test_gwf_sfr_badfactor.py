@@ -14,20 +14,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-from framework import testing_framework
-from simulation import Simulation
-
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
+try:
+    from modflow_devtools import MFTestContext
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "sfr"
 testname = "ts_sfr01"
-testdir = os.path.join("temp", testname)
-os.makedirs(testdir, exist_ok=True)
-everything_was_successful = True
 
-
-def build_model(timeseries=False):
+def build_model(testdir, timeseries=False):
     # static model data
     # temporal discretization
     nper = 1
@@ -530,14 +526,19 @@ def build_model(timeseries=False):
 
 
 # - No need to change any code below
-def test_mf6model():
+@pytest.mark.gwf
+@pytest.mark.sfr
+def test_gwf_sfr_badactor(tmpdir, mf6testctx):
+    global mf6_exe
+    mf6_exe = mf6testctx.get_target_dictionary()["mf6"]
+
     # build and run the test model
-    sim = build_model()
+    sim = build_model(str(tmpdir))
     sim.write_simulation()
     sim.run_simulation()
 
     # ensure that the error msg is contained in the mfsim.lst file
-    f = open(os.path.join(testdir, "mfsim.lst"), "r")
+    f = open(os.path.join(str(tmpdir), "mfsim.lst"), "r")
     lines = f.readlines()
     error_count = 0
     expected_msg = False
@@ -556,13 +557,25 @@ def test_mf6model():
 
 
 def main():
+    from conftest import mf6_testbin
+
+    global mf6_exe
+    ctx = MFTestContext(testbin=mf6_testbin)
+    mf6_exe = ctx.get_target_dictionary()["mf6"]
+
+    simdir = os.path.join(
+        "autotest-keep", "standalone",
+        os.path.splitext(os.path.basename(__file__))[0],
+        testname,
+    )
+
     # build and run the test model
-    sim = build_model()
+    sim = build_model(simdir)
     sim.write_simulation()
     sim.run_simulation()
 
     # ensure that the error msg is contained in the mfsim.lst file
-    f = open(os.path.join(testdir, "mfsim.lst"), "r")
+    f = open(os.path.join(simdir, "mfsim.lst"), "r")
     lines = f.readlines()
     error_count = 0
     expected_msg = False

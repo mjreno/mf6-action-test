@@ -4,14 +4,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -19,16 +11,18 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = [
+runs = [
     "bndname01",
 ]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-ddir = "data"
 
 
 def build_model(idx, exdir):
@@ -71,7 +65,7 @@ def get_model(idx, ws):
     for i in range(nper):
         tdis_rc.append((perlen[i], nstp[i], tsmult[i]))
 
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     sim = flopy.mf6.MFSimulation(
@@ -164,7 +158,7 @@ def get_model(idx, ws):
 
 def replace_quotes(idx, exdir):
     ws = os.path.join(exdir, "mf6")
-    gwfname = f"gwf_{ex[idx]}"
+    gwfname = f"gwf_{runs[idx]}"
     extensions = (".chd", ".chd.obs")
     for ext in extensions:
         fpth = os.path.join(ws, f"{gwfname}{ext}")
@@ -177,8 +171,8 @@ def replace_quotes(idx, exdir):
 
 def eval_obs(sim):
     idx = sim.idxsim
-    ws = exdirs[idx]
-    name = ex[idx]
+    ws = sim.simpath
+    name = runs[idx]
     print("evaluating observations results..." f"({name})")
 
     fpth = os.path.join(ws, f"gwf_{name}.chd.obs.csv")
@@ -197,42 +191,52 @@ def eval_obs(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_boundname01(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # replace quotes
-    replace_quotes(idx, exdir)
+    replace_quotes(idx, str(tmpdir))
 
     # run the test model
     test.run_mf6(
         Simulation(
-            exdir,
+            str(tmpdir),
+            testbin=testbin,
             idxsim=idx,
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build and run the test model
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
         sim = Simulation(
-            exdir,
+            simdir,
             idxsim=idx,
             exfunc=eval_obs,
+            testbin=mf6_testbin,
         )
-        replace_quotes(idx, exdir)
+        replace_quotes(idx, simdir)
         test.run_mf6(sim)
 
     return

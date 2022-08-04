@@ -11,24 +11,25 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["zbud6_zb01"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-
-ddir = "data"
+runs = ["zbud6_zb01"]
 
 ## run all examples on Travis
-continuous_integration = [True for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
 
 # set replace_exe to None to use default executable
 replace_exe = None
 
-htol = [None for idx in range(len(exdirs))]
+htol = [None for idx in range(len(runs))]
 dtol = 1e-3
 budtol = 1e-2
 
@@ -133,7 +134,7 @@ ske = [6e-4, 3e-4, 6e-4]
 
 # variant SUB package problem 3
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # build MODFLOW 6 files
     ws = dir
@@ -242,19 +243,21 @@ def eval_zb6(sim):
 
     print("evaluating zonebudget...")
 
+    runname = runs[sim.idxsim]
+
     # build zonebudget files
     zones = [-1000000, 1000000, 9999999]
     nzones = len(zones)
     fpth = os.path.join(sim.simpath, "zonebudget.nam")
     f = open(fpth, "w")
     f.write("BEGIN ZONEBUDGET\n")
-    f.write(f"  BUD {os.path.basename(sim.name)}.cbc\n")
-    f.write(f"  ZON {os.path.basename(sim.name)}.zon\n")
-    f.write(f"  GRB {os.path.basename(sim.name)}.dis.grb\n")
+    f.write(f"  BUD {runname}.cbc\n")
+    f.write(f"  ZON {runname}.zon\n")
+    f.write(f"  GRB {runname}.dis.grb\n")
     f.write("END ZONEBUDGET\n")
     f.close()
 
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.zon")
+    fpth = os.path.join(sim.simpath, f"{runname}.zon")
     f = open(fpth, "w")
     f.write("BEGIN DIMENSIONS\n")
     f.write(f"  NCELLS {size3d}\n")
@@ -267,7 +270,6 @@ def eval_zb6(sim):
     f.close()
 
     # run zonebudget
-    zbexe = os.path.abspath(targets.target_dict["zbud6"])
     success, buff = flopy.run_model(
         zbexe,
         "zonebudget.nam",
@@ -307,7 +309,8 @@ def eval_zb6(sim):
             ion = 0
 
     # get results from listing file
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.lst")
+    fpth = os.path.join(sim.simpath, f"{runname}.lst")
+    print(fpth)
     budl = flopy.utils.Mf6ListBudget(fpth)
     names = list(bud_lst)
     d0 = budl.get_budget(names=names)[0]
@@ -319,7 +322,7 @@ def eval_zb6(sim):
     d = np.recarray(nbud, dtype=dtype)
     for key in bud_lst:
         d[key] = 0.0
-    fpth = os.path.join(sim.simpath, f"{os.path.basename(sim.name)}.cbc")
+    fpth = os.path.join(sim.simpath, f"{runname}.cbc")
     cobj = flopy.utils.CellBudgetFile(fpth, precision="double")
     kk = cobj.get_kstpkper()
     times = cobj.get_times()
@@ -356,9 +359,7 @@ def eval_zb6(sim):
     msg = f"maximum absolute total-budget difference ({diffmax}) "
 
     # write summary
-    fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.bud.cmp.out"
-    )
+    fpth = os.path.join(sim.simpath, f"{runname}.bud.cmp.out")
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
         if i == 0:
@@ -386,9 +387,7 @@ def eval_zb6(sim):
     )
 
     # write summary
-    fpth = os.path.join(
-        sim.simpath, f"{os.path.basename(sim.name)}.zbud.cmp.out"
-    )
+    fpth = os.path.join(sim.simpath, f"{runname}.zbud.cmp.out")
     f = open(fpth, "w")
     for i in range(diff.shape[0]):
         if i == 0:
@@ -418,11 +417,13 @@ def eval_zb6(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_zb01(idx, run, tmpdir, testbin):
+    global zbexe
 
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
@@ -435,33 +436,49 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models_legacy(build_model, idx, dir)
+    test.build_mf6_models_legacy(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(
-        Simulation(
-            dir, exfunc=eval_zb6, exe_dict=r_exe, htol=htol[idx], idxsim=idx
-        )
+    sim = Simulation(
+        str(tmpdir),
+        exfunc=eval_zb6,
+        exe_dict=r_exe,
+        testbin=testbin,
+        htol=htol[idx],
+        idxsim=idx
     )
+    zbexe = sim.Ctx().get_target_dictionary()["zbud6"]
+    test.run_mf6(sim)
 
 
 def main():
+    from conftest import mf6_testbin
+
+    global zbexe
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models_legacy(build_model, idx, dir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models_legacy(build_model, idx, simdir)
         sim = Simulation(
-            dir,
+            simdir,
             exfunc=eval_zb6,
             exe_dict=replace_exe,
+            testbin=mf6_testbin,
             htol=htol[idx],
             idxsim=idx,
         )
+        zbexe = sim.Ctx().get_target_dictionary()["zbud6"]
         test.run_mf6(sim)
 
     return

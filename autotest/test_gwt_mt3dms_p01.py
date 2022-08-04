@@ -27,14 +27,6 @@ import numpy as np
 import pytest
 
 try:
-    import pymake
-except:
-    msg = "Error. Pymake package is not available.\n"
-    msg += "Try installing using the following command:\n"
-    msg += " pip install https://github.com/modflowpy/pymake/zipball/master"
-    raise Exception(msg)
-
-try:
     import flopy
 except:
     msg = "Error. FloPy package is not available.\n"
@@ -42,14 +34,14 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
+try:
+    from modflow_devtools import MFTestContext
+    from modflow_devtools import set_teardown_test
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-exe_name_mf = targets.target_dict["mf2005s"]
-exe_name_mt = targets.target_dict["mt3dms"]
-exe_name_mf6 = targets.target_dict["mf6"]
-testdir = "./temp"
 testgroup = "mt3dms_p01"
-remove_files = True
 
 
 def p01mt3d(
@@ -481,7 +473,7 @@ def p01mf6(
     return sim, conc
 
 
-def test_mt3dmsp01a():
+def mt3dmsp01a(testdir):
 
     longitudinal_dispersivity = 0.0
     retardation = 1.0
@@ -490,7 +482,7 @@ def test_mt3dmsp01a():
     zeta = None
     prsity2 = None
 
-    mf6_ws = os.path.join(testdir, testgroup + "a")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -539,13 +531,10 @@ def test_mt3dmsp01a():
     storage_sorbed = bobj.get_data(kstpkper=(9, 0), text="STORAGE-SORBED")[0]
     bobj.file.close()
     assert np.allclose(0.0, storage_sorbed), f"{storage_sorbed}"
-
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01b():
+def mt3dmsp01b(testdir):
 
     longitudinal_dispersivity = 10.0
     retardation = 1.0
@@ -554,7 +543,7 @@ def test_mt3dmsp01b():
     zeta = None
     prsity2 = None
 
-    mf6_ws = os.path.join(testdir, testgroup + "b")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -578,12 +567,10 @@ def test_mt3dmsp01b():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1e-4), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01c():
+def mt3dmsp01c(testdir):
 
     longitudinal_dispersivity = 10.0
     retardation = 1.5
@@ -592,7 +579,7 @@ def test_mt3dmsp01c():
     zeta = None
     prsity2 = None
 
-    mf6_ws = os.path.join(testdir, testgroup + "c")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -616,12 +603,10 @@ def test_mt3dmsp01c():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1e-4), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01d():
+def mt3dmsp01d(testdir):
 
     longitudinal_dispersivity = 10.0
     retardation = 1.5
@@ -630,7 +615,7 @@ def test_mt3dmsp01d():
     zeta = None
     prsity2 = None
 
-    mf6_ws = os.path.join(testdir, testgroup + "d")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -654,12 +639,10 @@ def test_mt3dmsp01d():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1e-4), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01e():
+def mt3dmsp01e(testdir):
 
     longitudinal_dispersivity = 10.0
     retardation = 1.5
@@ -668,7 +651,7 @@ def test_mt3dmsp01e():
     zeta = 0.1
     prsity2 = 0.05
 
-    mf6_ws = os.path.join(testdir, testgroup + "e")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -692,12 +675,10 @@ def test_mt3dmsp01e():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1e-1), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01f():
+def mt3dmsp01f(testdir):
 
     longitudinal_dispersivity = 10.0
     retardation = 1.5
@@ -706,7 +687,7 @@ def test_mt3dmsp01f():
     zeta = 0.1
     prsity2 = 0.05
 
-    mf6_ws = os.path.join(testdir, testgroup + "f")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -731,12 +712,10 @@ def test_mt3dmsp01f():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1e-1), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
-def test_mt3dmsp01g():
+def mt3dmsp01g(testdir):
 
     longitudinal_dispersivity = 0.0
     retardation = 1.0
@@ -745,7 +724,7 @@ def test_mt3dmsp01g():
     zeta = None
     prsity2 = None
 
-    mf6_ws = os.path.join(testdir, testgroup + "g")
+    mf6_ws = testdir
     sim, conc_mf6 = p01mf6(
         mf6_ws,
         longitudinal_dispersivity,
@@ -772,18 +751,51 @@ def test_mt3dmsp01g():
 
     msg = f"concentrations not equal {conc_mt3d} {conc_mf6}"
     assert np.allclose(conc_mt3d, conc_mf6, atol=1.0e-4), msg
-    if remove_files:
-        shutil.rmtree(mf6_ws)
     return
 
 
+tests = [
+    mt3dmsp01a,
+    mt3dmsp01b,
+    mt3dmsp01c,
+    mt3dmsp01d,
+    mt3dmsp01e,
+    mt3dmsp01f,
+    mt3dmsp01g,
+]
+
+
+@pytest.mark.gwt
+@pytest.mark.parametrize(
+    "idx, test",
+    list(enumerate(tests)),
+)
+def test_gwt_mt3dms_p01(idx, test, tmpdir, mf6testctx):
+    global exe_name_mf
+    global exe_name_mt
+    global exe_name_mf6
+    
+    exe_name_mf = mf6testctx.get_target_dictionary()["mf2005s"]
+    exe_name_mt = mf6testctx.get_target_dictionary()["mt3dms"]
+    exe_name_mf6 = mf6testctx.get_target_dictionary()["mf6"]
+    test(str(tmpdir))
+
+
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
-    test_mt3dmsp01a()
-    test_mt3dmsp01b()
-    test_mt3dmsp01c()
-    test_mt3dmsp01d()
-    test_mt3dmsp01e()
-    test_mt3dmsp01f()
-    test_mt3dmsp01g()
+
+    ctx = MFTestContext(testbin=mf6_testbin)
+
+    for idx, test in enumerate(tests):
+        testdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test.__name__,
+        )
+        os.makedirs(testdir, exist_ok=True)
+        test_gwt_mt3dms_p01(idx, test, testdir, ctx)
+        if set_teardown_test():
+            shutil.rmtree(testdir, ignore_errors=True)

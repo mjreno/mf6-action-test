@@ -11,15 +11,20 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 paktest = "sfr"
 
-ex = [
+runs = [
     "sfr_npt02a",
 ]
-exdirs = [os.path.join("temp", s) for s in ex]
 
 # temporal discretization
 nper = 10
@@ -64,7 +69,7 @@ def flow_to_depth_wide(rwid, q):
 def build_model(idx, ws):
 
     # build MODFLOW 6 files
-    name = ex[idx]
+    name = runs[idx]
     sim = flopy.mf6.MFSimulation(
         sim_name=name,
         version="mf6",
@@ -219,10 +224,10 @@ def build_model(idx, ws):
 
 def eval_npointdepth(sim):
     idx = sim.idxsim
-    name = ex[idx]
+    name = runs[idx]
     print("evaluating n-point cross-section results..." f"({name})")
 
-    obs_pth = os.path.join(exdirs[idx], f"{name}.sfr.obs.csv")
+    obs_pth = os.path.join(sim.simpath, f"{name}.sfr.obs.csv")
     obs = flopy.utils.Mf6Obs(obs_pth).get_data()
 
     assert np.allclose(
@@ -242,38 +247,49 @@ def eval_npointdepth(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.sfr
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwf_sfr_npoint02(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test models
     test.run_mf6(
         Simulation(
-            exdir,
+            str(tmpdir),
             exfunc=eval_npointdepth,
+            testbin=testbin,
             idxsim=idx,
         )
     )
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
         sim = Simulation(
-            exdir,
+            simdir,
             exfunc=eval_npointdepth,
+            testbin=mf6_testbin,
             idxsim=idx,
         )
         test.run_mf6(sim)

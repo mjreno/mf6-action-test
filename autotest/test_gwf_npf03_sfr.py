@@ -12,18 +12,22 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import running_on_CI, testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        running_on_CI,
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["npf03_sfra", "npf03_sfrb"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
+runs = ["npf03_sfra", "npf03_sfrb"]
 ddir = "data"
 
 # run all examples on CI
-continuous_integration = [True for idx in range(len(exdirs))]
-# continuous_integration = [False for idx in range(len(exdirs))]
+continuous_integration = [True for idx in range(len(runs))]
+# continuous_integration = [False for idx in range(len(runs))]
 
 # read hk data
 fpth = os.path.join(ddir, "npf03_hk.ref")
@@ -74,7 +78,7 @@ def get_local_data(idx):
 
 
 def build_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # set local data for this model
     ncolst, nmodels, mnames = get_local_data(idx)
@@ -5798,11 +5802,14 @@ def eval_hds(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwf
+@pytest.mark.npf
+@pytest.mark.sfr
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwf_npf03_sfr(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
 
@@ -5810,24 +5817,40 @@ def test_mf6model(idx, dir):
     test = testing_framework()
 
     # build the models
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(Simulation(dir, exfunc=eval_hds, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_hds,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # build the models
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_hds, idxsim=idx)
-        test.run_mf6(sim)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        test.run_mf6(Simulation(
+            simdir,
+            exfunc=eval_hds,
+            testbin=mf6_testbin,
+            idxsim=idx
+        ))
 
     return
 

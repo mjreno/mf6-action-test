@@ -19,8 +19,8 @@ try:
         Simulation,
     )
 except:
-    from framework import running_on_CI, testing_framework
-    from simulation import Simulation
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 runs = [
     "maw_iss305a",
@@ -253,12 +253,12 @@ def build_model(idx, dir):
 
 # - No need to change any code below
 @pytest.mark.gwf
-@pytest.mark.gwf_maw
+@pytest.mark.maw
 @pytest.mark.parametrize(
     "idx, run",
     list(enumerate(runs)),
 )
-def test_gwf_maw04(idx, run, tmpdir):
+def test_gwf_maw04(idx, run, tmpdir, testbin):
     # determine if running on CI infrastructure
     is_CI = running_on_CI()
 
@@ -271,10 +271,16 @@ def test_gwf_maw04(idx, run, tmpdir):
     # run the test model
     if is_CI and not continuous_integration[idx]:
         return
-    test.run_mf6(Simulation(str(tmpdir), require_failure=require_failure[idx]))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        testbin=testbin,
+        require_failure=require_failure[idx]
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
@@ -282,12 +288,16 @@ def main():
     # run the test model
     for idx, run in enumerate(runs):
         simdir = os.path.join(
-          'results',
-          os.path.splitext(os.path.basename(__file__))[0].split('_', 1)[1],
-          run
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
         )
         test.build_mf6_models_legacy(build_model, idx, simdir)
-        sim = Simulation(simdir, require_failure=require_failure[idx])
+        sim = Simulation(
+            simdir,
+            testbin=mf6_testbin,
+            require_failure=require_failure[idx]
+        )
         test.run_mf6(sim)
 
     return

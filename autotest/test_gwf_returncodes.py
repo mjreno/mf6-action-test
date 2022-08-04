@@ -13,13 +13,14 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-import targets
+try:
+    from modflow_devtools import MFTestContext
+    from modflow_devtools import set_teardown_test
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-mf6_exe = os.path.abspath(targets.target_dict["mf6"])
 name = "gwf_ret_codes01"
-base_ws = os.path.join("temp", name)
-if not os.path.isdir(base_ws):
-    os.makedirs(base_ws)
 app = "mf6"
 if sys.platform.lower() == "win32":
     app += ".exe"
@@ -143,8 +144,8 @@ def get_sim(ws, idomain, continue_flag=False, nouter=500):
     return sim
 
 
-def normal_termination():
-    ws = os.path.join(base_ws, "normal_termination")
+def normal_termination(testdir):
+    ws = testdir
 
     # get the simulation
     sim = get_sim(ws, idomain=1)
@@ -161,14 +162,11 @@ def normal_termination():
         )
         raise ValueError(msg)
 
-    # clean up working directory
-    clean(ws)
-
     return
 
 
-def converge_fail_continue():
-    ws = os.path.join(base_ws, "converge_fail_continue")
+def converge_fail_continue(testdir):
+    ws = testdir
 
     # get the simulation
     sim = get_sim(ws, idomain=1, continue_flag=True, nouter=1)
@@ -187,8 +185,8 @@ def converge_fail_continue():
     return
 
 
-def converge_fail_nocontinue():
-    ws = os.path.join(base_ws, "converge_fail_nocontinue")
+def converge_fail_nocontinue(testdir):
+    ws = testdir
 
     with pytest.raises(RuntimeError):
         # get the simulation
@@ -205,8 +203,8 @@ def converge_fail_nocontinue():
             raise RuntimeError(msg)
 
 
-def idomain_runtime_error():
-    ws = os.path.join(base_ws, "idomain_runtime_error")
+def idomain_runtime_error(testdir):
+    ws = testdir
 
     with pytest.raises(RuntimeError):
         # get the simulation
@@ -229,8 +227,8 @@ def idomain_runtime_error():
                 raise ValueError(msg)
 
 
-def unknown_keyword_error():
-    ws = base_ws
+def unknown_keyword_error(testdir):
+    ws = testdir
 
     with pytest.raises(RuntimeError):
         returncode, buff = run_mf6([mf6_exe, "--unknown_keyword"], ws)
@@ -245,8 +243,8 @@ def unknown_keyword_error():
                 raise ValueError(msg)
 
 
-def run_argv(arg, return_str):
-    ws = base_ws
+def run_argv(arg, return_str, testdir):
+    ws = testdir
 
     returncode, buff = run_mf6([mf6_exe, arg], ws)
     if returncode == 0:
@@ -259,62 +257,75 @@ def run_argv(arg, return_str):
         raise RuntimeError(msg)
 
 
-def help_argv():
+def help_argv(testdir):
     for arg in ["-h", "--help", "-?"]:
         return_str = f"{app} [options]     retrieve program information"
-        run_argv(arg, return_str)
+        run_argv(arg, return_str, testdir)
 
 
-def version_argv():
+def version_argv(testdir):
     for arg in ["-v", "--version"]:
         return_str = f"{app}: 6"
-        run_argv(arg, return_str)
+        run_argv(arg, return_str, testdir)
 
 
-def develop_argv():
+def develop_argv(testdir):
     for arg in ["-dev", "--develop"]:
         return_str = f"{app}: develop version"
-        run_argv(arg, return_str)
+        run_argv(arg, return_str, testdir)
 
 
-def compiler_argv():
+def compiler_argv(testdir):
     for arg in ["-c", "--compiler"]:
         return_str = f"{app}: MODFLOW 6 compiled"
-        run_argv(arg, return_str)
+        run_argv(arg, return_str, testdir)
 
 
 def clean(dir_pth):
-    print(f"Cleaning up {dir_pth}")
-    shutil.rmtree(dir_pth)
+    if "--keep" not in sys.argv:
+        print(f"Cleaning up {dir_pth}")
+        shutil.rmtree(dir_pth)
 
 
+tests = [
+    idomain_runtime_error,
+    unknown_keyword_error,
+    normal_termination,
+    converge_fail_nocontinue,
+    help_argv,
+    version_argv,
+    develop_argv,
+    compiler_argv,
+]
+
+@pytest.mark.gwf
+@pytest.mark.sys
 @pytest.mark.parametrize(
-    "fn",
-    (
-        "idomain_runtime_error()",
-        "unknown_keyword_error()",
-        "normal_termination()",
-        "converge_fail_nocontinue()",
-        "help_argv()",
-        "version_argv()",
-        "develop_argv()",
-        "compiler_argv()",
-    ),
+    "idx, test",
+    list(enumerate(tests)),
 )
-def test_main(fn):
-    eval(fn)
-
+def test_gwf_returncodes(idx, test, tmpdir, mf6testctx):
+    global mf6_exe
+    mf6_exe = mf6testctx.get_target_dictionary()["mf6"]
+    test(str(tmpdir))
 
 if __name__ == "__main__":
+    from conftest import mf6_testbin
+
     # print message
     print(f"standalone run of {os.path.basename(__file__)}")
 
-    idomain_runtime_error()
-    unknown_keyword_error()
-    normal_termination()
-    converge_fail_nocontinue()
-    help_argv()
-    version_argv()
-    develop_argv()
-    compiler_argv()
-    clean(base_ws)
+    global mf6_exe
+    ctx = MFTestContext(testbin=mf6_testbin)
+    mf6_exe = ctx.get_target_dictionary()["mf6"]
+
+    for idx, test in enumerate(tests):
+        testdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            test.__name__,
+        )
+        os.makedirs(testdir, exist_ok=True)
+        test(testdir)
+        if set_teardown_test():
+            shutil.rmtree(testdir, ignore_errors=True)

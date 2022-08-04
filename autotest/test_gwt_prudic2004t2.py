@@ -18,14 +18,16 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
-ex = ["prudic2004t2"]
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
-
+runs = ["prudic2004t2"]
 data_ws = "./data/prudic2004test2/"
 fname = os.path.join(data_ws, "lakibd.dat")
 lakibd = np.loadtxt(fname, dtype=int)
@@ -34,7 +36,7 @@ lakibd = np.loadtxt(fname, dtype=int)
 def build_model(idx, dir):
 
     ws = dir
-    name = ex[idx]
+    name = runs[idx]
     gwfname = "gwf_" + name
     gwtname = "gwt_" + name
     sim = flopy.mf6.MFSimulation(
@@ -523,8 +525,8 @@ def build_model(idx, dir):
 
 def make_concentration_vs_time(sim):
     print("making plot of concentration versus time...")
-    name = ex[sim.idxsim]
-    ws = exdirs[sim.idxsim]
+    name = runs[sim.idxsim]
+    ws = sim.simpath
     sim = flopy.mf6.MFSimulation.load(sim_ws=ws)
     gwfname = "gwf_" + name
     gwtname = "gwt_" + name
@@ -582,8 +584,8 @@ def make_concentration_map(sim):
         500,
     ]
 
-    name = ex[sim.idxsim]
-    ws = exdirs[sim.idxsim]
+    name = runs[sim.idxsim]
+    ws = sim.simpath
     simfp = flopy.mf6.MFSimulation.load(sim_ws=ws)
     gwfname = "gwf_" + name
     gwtname = "gwt_" + name
@@ -632,8 +634,8 @@ def eval_results(sim):
         make_concentration_map(sim)
 
     # ensure concentrations were saved
-    ws = exdirs[sim.idxsim]
-    name = ex[sim.idxsim]
+    ws = sim.simpath
+    name = runs[sim.idxsim]
     gwtname = "gwt_" + name
 
     fname = gwtname + ".lkt.bin"
@@ -775,29 +777,47 @@ def eval_results(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwt
 @pytest.mark.parametrize(
-    "idx, dir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, dir):
+def test_gwt_prudic2004t2(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, dir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(dir, exfunc=eval_results, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=eval_results,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test model
-    for idx, dir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, dir)
-        sim = Simulation(dir, exfunc=eval_results, idxsim=idx)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
+        sim = Simulation(
+            simdir,
+            exfunc=eval_results,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
 
 

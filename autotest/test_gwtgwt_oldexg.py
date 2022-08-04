@@ -11,8 +11,14 @@ except:
     msg += " pip install flopy"
     raise Exception(msg)
 
-from framework import testing_framework
-from simulation import Simulation
+try:
+    from modflow_devtools import (
+        testing_framework,
+        Simulation,
+    )
+except:
+    msg = "modflow-devtools not in PYTHONPATH"
+    raise Exception(msg)
 
 # Test compatibility of GWT-GWT with the 'classic' GWF exchange.
 # It compares the result of a single reference model
@@ -35,12 +41,8 @@ from simulation import Simulation
 # specific discharges. All models are part of the same solution
 # for convenience. Finally, the budget error is checked.
 
-ex = ["gwtgwt_oldexg"]
+runs = ["gwtgwt_oldexg"]
 use_ifmod = False
-
-exdirs = []
-for s in ex:
-    exdirs.append(os.path.join("temp", s))
 
 # some global convenience...:
 # model names
@@ -99,7 +101,7 @@ perlen = 100.0
 
 
 def get_model(idx, dir):
-    name = ex[idx]
+    name = runs[idx]
 
     # parameters and spd
     # tdis
@@ -785,32 +787,49 @@ def compare_gwt_to_ref(sim):
 
 
 # - No need to change any code below
+@pytest.mark.gwt
 @pytest.mark.parametrize(
-    "idx, exdir",
-    list(enumerate(exdirs)),
+    "idx, run",
+    list(enumerate(runs)),
 )
-def test_mf6model(idx, exdir):
+def test_gwtgwt_oldexg(idx, run, tmpdir, testbin):
     # initialize testing framework
     test = testing_framework()
 
     # build the model
-    test.build_mf6_models(build_model, idx, exdir)
+    test.build_mf6_models(build_model, idx, str(tmpdir))
 
     # run the test model
-    test.run_mf6(Simulation(exdir, exfunc=compare_to_ref, idxsim=idx))
+    test.run_mf6(Simulation(
+        str(tmpdir),
+        exfunc=compare_to_ref,
+        testbin=testbin,
+        idxsim=idx
+    ))
 
 
 def main():
+    from conftest import mf6_testbin
+
     # initialize testing framework
     test = testing_framework()
 
     # run the test models
-    for idx, exdir in enumerate(exdirs):
-        test.build_mf6_models(build_model, idx, exdir)
+    for idx, run in enumerate(runs):
+        simdir = os.path.join(
+            "autotest-keep", "standalone",
+            os.path.splitext(os.path.basename(__file__))[0],
+            run,
+        )
+        test.build_mf6_models(build_model, idx, simdir)
 
-        sim = Simulation(exdir, exfunc=compare_to_ref, idxsim=idx)
+        sim = Simulation(
+            simdir,
+            exfunc=compare_to_ref,
+            testbin=mf6_testbin,
+            idxsim=idx
+        )
         test.run_mf6(sim)
-    return
 
 
 if __name__ == "__main__":
