@@ -41,7 +41,7 @@ def test_delete_dfn():
 
 
 def test_copy_dfn():
-    pth0 = os.path.join("..", "doc", "mf6io", "mf6ivar", "dfn")
+    pth0 = os.path.join("..", "..", "doc", "mf6io", "mf6ivar", "dfn")
     files = [
         entry
         for entry in os.listdir(pth0)

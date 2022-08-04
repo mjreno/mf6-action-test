@@ -1,5 +1,5 @@
 #!/bin/bash
 
-cd autotest
+cd autotest/scripts
 python update_flopy.py
-cd ..
+cd ../..
