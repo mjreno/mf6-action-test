@@ -105,4 +105,6 @@ jobs:
       - name: Test applications
         working-directory: autotest
         run: |
+          ls -l /home/runner/micromamba-root/envs/modflow6/lib/python3.10/site-packages/modflow_devtools
+          ls -l /home/runner/micromamba-root/envs/modflow6/lib/python3.10/site-packages/modflow_devtools/utilities
           pytest -v -n=auto --durations=0
