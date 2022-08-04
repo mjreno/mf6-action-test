@@ -144,10 +144,20 @@ jobs:
 #          cd autotest
 #          pytest -v --durations=0 get_exes.py
 
-      - name: Test applications
+      - name: Test applications (Linux or macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
         working-directory: autotest
         run: |
           source /opt/intel/oneapi/setvars.sh
+          pytest -v -n=auto --durations=0
+
+      - name: Test applications (Windows)
+        if: runner.os == 'Windows'
+        working-directory: autotest
+        shell: cmd /C CALL {0}
+        run: |
+          call micromamba activate modflow6
+          call ".github/intel-scripts/build_windows.bat"
           pytest -v -n=auto --durations=0
 
       - name: exclude unused files from cache on linux
