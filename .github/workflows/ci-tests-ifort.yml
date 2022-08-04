@@ -147,6 +147,7 @@ jobs:
       - name: Test applications
         working-directory: autotest
         run: |
+          source /opt/intel/oneapi/setvars.sh
           pytest -v -n=auto --durations=0
 
       - name: exclude unused files from cache on linux
