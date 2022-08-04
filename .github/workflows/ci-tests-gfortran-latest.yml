@@ -44,7 +44,8 @@ jobs:
 
       - name: Clone devtools and add to PYTHONPATH
         run: |
-          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
           echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: Setup symbolic links on Linux

@@ -57,7 +57,8 @@ jobs:
 
       - name: Clone devtools and add to PYTHONPATH
         run: |
-          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
           echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: cache install ifort on linux
@@ -129,8 +130,8 @@ jobs:
           source /opt/intel/oneapi/setvars.sh
           meson setup builddir -Ddebug=false --prefix=$(pwd) --libdir=bin
           meson install -C builddir
-          cd autotest
-          pytest -v --durations=0 get_exes.py
+#          cd autotest
+#          pytest -v --durations=0 get_exes.py
 
       - name: Build MODFLOW 6 (Windows)
         if: runner.os == 'Windows'
@@ -140,8 +141,8 @@ jobs:
           call ".github/intel-scripts/build_windows.bat"
           meson setup builddir -Ddebug=false --prefix=%CD% --libdir=bin
           meson install -C builddir
-          cd autotest
-          pytest -v --durations=0 get_exes.py
+#          cd autotest
+#          pytest -v --durations=0 get_exes.py
 
       - name: Test applications
         working-directory: autotest
