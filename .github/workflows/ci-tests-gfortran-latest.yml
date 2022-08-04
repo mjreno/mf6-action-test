@@ -110,13 +110,14 @@ jobs:
 #          pytest -v -n=auto --durations=0
 
       - name: Test applications (Linux or macOS)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' || runner.os == 'macOS'
         working-directory: autotest
         run: |
+          micromamba activate modflow6
           pytest -v -n=auto --durations=0
 
       - name: Test applications (Windows)
-        if: runner.os == 'Windows' || runner.os == 'macOS'
+        if: runner.os == 'Windows'
         working-directory: autotest
         shell: cmd /C CALL {0}
         run: |
