@@ -131,7 +131,7 @@ jobs:
 
       - name: Test ifort built applications
         if: matrix.FC == 'ifort'
-        working-directory: autotest2
+        working-directory: autotest
         run: |
           source /opt/intel/oneapi/setvars.sh
           python scripts/get_releases.py --testbin ../bin
@@ -139,7 +139,7 @@ jobs:
 
       - name: Test gfortran built applications
         if: matrix.FC == 'gfortran'
-        working-directory: autotest2
+        working-directory: autotest
         run: |
           python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
