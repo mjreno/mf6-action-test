@@ -102,26 +102,24 @@ jobs:
 #        run: |
 #          pytest -v --durations=0 get_exes.py
 
-#      - name: Test applications
-#        working-directory: autotest
-#        run: |
-#          ls -l /home/runner/micromamba-root/envs/modflow6/lib/python3.10/site-packages/modflow_devtools
-#          ls -l /home/runner/micromamba-root/envs/modflow6/lib/python3.10/site-packages/modflow_devtools/utilities
-#          pytest -v -n=auto --durations=0
-
-      - name: Test applications (Linux or macOS)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
+      - name: Test applications
         working-directory: autotest
         run: |
-          micromamba activate modflow6
-          pytest -v -n=auto --durations=0
-
-      - name: Test applications (Windows)
-        if: runner.os == 'Windows'
-        working-directory: autotest
-        shell: cmd /C CALL {0}
-        run: |
-          call micromamba activate modflow6
-          call echo pwd=%CD%
           python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0
+
+#      - name: Test applications (Linux or macOS)
+#        if: runner.os == 'Linux' || runner.os == 'macOS'
+#        working-directory: autotest
+#        run: |
+#          micromamba activate modflow6
+#          pytest -v -n=auto --durations=0
+
+#      - name: Test applications (Windows)
+#        if: runner.os == 'Windows'
+#        working-directory: autotest
+#        shell: cmd /C CALL {0}
+#        run: |
+#          call micromamba activate modflow6
+#          python scripts/get_releases.py --testbin ../bin
+#          pytest -v -n=auto --durations=0
