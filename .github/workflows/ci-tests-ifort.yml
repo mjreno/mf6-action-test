@@ -55,11 +55,11 @@ jobs:
         run: |
           pip list
 
-      - name: Clone devtools and add to PYTHONPATH
-        run: |
-          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
-          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
-          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+#      - name: Clone devtools and add to PYTHONPATH
+#        run: |
+#          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+#          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
+#          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: cache install ifort on linux
         if: runner.os == 'Linux'
@@ -149,6 +149,7 @@ jobs:
         working-directory: autotest
         run: |
           source /opt/intel/oneapi/setvars.sh
+          python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0
 
       - name: Test applications (Windows)
@@ -158,6 +159,7 @@ jobs:
         run: |
           call micromamba activate modflow6
           call ".github/intel-scripts/build_windows.bat"
+          python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0
 
       - name: exclude unused files from cache on linux

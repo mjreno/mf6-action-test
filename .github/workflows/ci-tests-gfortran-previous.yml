@@ -53,11 +53,11 @@ jobs:
         run: |
           pip list
 
-      - name: Clone devtools and add to PYTHONPATH
-        run: |
-          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
-          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
-          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+#      - name: Clone devtools and add to PYTHONPATH
+#        run: |
+#          #git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+#          git clone -b coupleMf6 https://github.com/mjreno/modflow-devtools.git ../modflow-devtools
+#          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: Set and print branch name
         run: |
@@ -91,4 +91,5 @@ jobs:
       - name: Test applications
         working-directory: autotest
         run: |
+          python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0

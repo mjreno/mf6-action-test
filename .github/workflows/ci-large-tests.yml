@@ -91,10 +91,10 @@ jobs:
         run: |
           pip list
 
-      - name: Clone devtools and add to PYTHONPATH
-        run: |
-          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
-          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
+#      - name: Clone devtools and add to PYTHONPATH
+#        run: |
+#          git clone -b develop https://github.com/MODFLOW-USGS/modflow-devtools.git ../modflow-devtools
+#          echo "PYTHONPATH=$PWD/../modflow-devtools:$PYTHONPATH" >> $GITHUB_ENV
 
       - name: Set and print branch name
         run: |
@@ -134,14 +134,14 @@ jobs:
         working-directory: autotest2
         run: |
           source /opt/intel/oneapi/setvars.sh
-          pytest -v -s test_eval_gwf_maw04.py
+          python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: Test gfortran built applications
         if: matrix.FC == 'gfortran'
         working-directory: autotest2
         run: |
-          pytest -v -s test_eval_gwf_maw04.py
+          python scripts/get_releases.py --testbin ../bin
           pytest -v -n=auto --durations=0 test_z03_${{ matrix.test_script }}.py
 
       - name: exclude unused files from cache on linux
