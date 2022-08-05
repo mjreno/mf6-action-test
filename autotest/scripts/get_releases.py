@@ -47,9 +47,11 @@ def parse_args():
     parser.add_argument(
         "-t",
         "--testbin",
+        nargs="?",
         required=False,
-        #default=bindir,
-        help="modflow6 built devbin, use option to setup devtools for testing",
+        const=bindir,
+        help="modflow6 built dev bin, use to setup devtools for testing, "
+        + "e.g. \'python get_releases.py -t ../../bin\'",
     )
 
     return parser.parse_args()
