@@ -123,4 +123,5 @@ jobs:
         run: |
           call micromamba activate modflow6
           call echo pwd=%CD%
+          pytest test_gwf_maw08.py
           pytest -v -n=auto --durations=0
