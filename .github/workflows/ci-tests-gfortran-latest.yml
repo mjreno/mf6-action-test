@@ -106,7 +106,7 @@ jobs:
         working-directory: autotest
         run: |
           python scripts/get_releases.py --testbin ../bin
-          pytest -v -n=auto --durations=0
+          pytest -v -n=auto --durations=0 -m 'not slow'
 
 #      - name: Test applications (Linux or macOS)
 #        if: runner.os == 'Linux' || runner.os == 'macOS'
