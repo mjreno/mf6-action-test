@@ -158,7 +158,7 @@ jobs:
         shell: cmd /C CALL {0}
         run: |
           call micromamba activate modflow6
-          call ".github/intel-scripts/build_windows.bat"
+          call "../.github/intel-scripts/build_windows.bat"
           python scripts/get_releases.py --testbin
 
       - name: Test applications (Windows)
@@ -167,7 +167,7 @@ jobs:
         shell: cmd /C CALL {0}
         run: |
           call micromamba activate modflow6
-          call ".github/intel-scripts/build_windows.bat"
+          call "../.github/intel-scripts/build_windows.bat"
           pytest -v -n=auto --durations=0
 
       - name: exclude unused files from cache on linux
