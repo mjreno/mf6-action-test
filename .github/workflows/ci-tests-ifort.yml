@@ -159,7 +159,7 @@ jobs:
         run: |
           call micromamba activate modflow6
           call ".github/intel-scripts/build_windows.bat"
-          python scripts/get_releases.py --testbin ../bin
+          python scripts/get_releases.py --testbin
 
       - name: Test applications (Windows)
         if: runner.os == 'Windows'
