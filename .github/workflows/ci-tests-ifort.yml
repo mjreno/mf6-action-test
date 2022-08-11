@@ -141,6 +141,9 @@ jobs:
           call ".github/intel-scripts/build_windows.bat"
           meson setup builddir -Ddebug=false --prefix=%CD% --libdir=bin
           meson install -C builddir
+          cd autotest
+          python scripts/get_releases.py --testbin ../bin
+          pytest -v -n=auto --durations=0
 #          cd autotest
 #          pytest -v --durations=0 get_exes.py
 
