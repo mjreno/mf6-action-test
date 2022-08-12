@@ -17,7 +17,8 @@ dependencies:
 #      - git+https://github.com/modflowpy/pymake.git
       - git+https://github.com/Deltares/xmipy.git
       - git+https://github.com/MODFLOW-USGS/modflowapi.git
-      - git+https://github.com/mjreno/modflow-devtools.git@coupleMf6
+#      - git+https://github.com/mjreno/modflow-devtools.git@coupleMf6
+      - git+https://github.com/mjreno/modflow-devtools.git@testing2
 #      - git+https://github.com/mjreno/modflow-devtools.git@coupleMf6Testing
   - pytest
   - pytest-xdist
